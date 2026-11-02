@@ -3657,7 +3657,7 @@ function clipPlanesFrom(v, defs) {
           break;
       }
     }
-    { const g = [0, 0, 0, 0, 0]; for (let o = 0; o < N2; o++) g[grp[o]]++; window.__micro = { kind: spec.kind, areas: g.map(v => v / N2) }; }  // for the tests
+    { const g = [0, 0, 0, 0, 0]; for (let o = 0; o < N2; o++) g[grp[o]]++; window.__micro = { kind: spec.kind, areas: g.map(v => v / N2), fB: spec.fB }; }  // for the tests
     // second-phase particles, stamped on top
     const stamp = (cx, cy, rr, p, gOver) => {
       const g = look ? (gOver !== undefined ? gOver : Lk[p]) : 0.5;
@@ -3974,6 +3974,7 @@ function clipPlanesFrom(v, defs) {
     const inside = f => f[0] <= n[0] + e && f[1] <= n[1] + e && f[2] <= n[2] + e;
     const at = (f, el) => out.push({ el, x: f[0] * st.abc[0] - size[0] / 2, y: f[1] * st.abc[1] - size[1] / 2, z: f[2] * st.abc[2] - size[2] / 2 });
     const occ = st.oct ? xB / (1 - xB) * st.basis.length / st.oct.length : 0;   // carbon per gap = (C per Fe) / (gaps per Fe): 1 gap per Fe in FCC, 3 in BCC
+    const gaps = [];
     for (let i = 0; i <= n[0]; i++) for (let j = 0; j <= n[1]; j++) for (let k = 0; k <= n[2]; k++) {
       if (st.fe3c) {
         if (i === n[0] || j === n[1] || k === n[2]) continue;
@@ -3987,9 +3988,11 @@ function clipPlanesFrom(v, defs) {
       });
       (st.oct || []).forEach(b => {
         const f = [i + b[0], j + b[1], k + b[2]]; if (!inside(f)) return;
-        if (hsh(f[0] * 4, f[1] * 4, f[2] * 4, seed + 7) < occ) at(f, "C");
+        gaps.push([hsh(f[0] * 4, f[1] * 4, f[2] * 4, seed + 7), f]);
       });
     }
+    // exactly occ × (number of gaps) carbon atoms, so the block holds the stated composition
+    gaps.sort((p, q) => p[0] - q[0]).slice(0, Math.round(occ * gaps.length)).forEach(g => at(g[1], "C"));
     return { atoms: out, size, n };
   }
   /* atoms per Å³ of the solid next to the liquid; the liquid is drawn about 4% less dense */
@@ -4002,7 +4005,7 @@ function clipPlanesFrom(v, defs) {
      box, so the unit cell outlined there is whole). Used where two phases share one block and the boundary cuts each
      lattice. xBat(x) is the solute fraction at x; u is a fixed random number per site for the boundary layer. */
   function latticeBox(st, lo, hi, origin, xBat, seed) {
-    const a = st.abc, out = [], e = 0.02, host = sysKey === "fec" ? "Fe" : sys.A, sol = sysKey === "fec" ? "C" : sys.B;
+    const a = st.abc, out = [], gaps = [], e = 0.02, host = sysKey === "fec" ? "Fe" : sys.A, sol = sysKey === "fec" ? "C" : sys.B;
     const rg = d => [Math.floor((lo[d] - origin[d]) / a[d]) - 1, Math.ceil((hi[d] - origin[d]) / a[d]) + 1];
     const [I, J, K] = [0, 1, 2].map(rg);
     const site = (f, el) => {
@@ -4010,7 +4013,7 @@ function clipPlanesFrom(v, defs) {
       if (p.x < lo[0] - e || p.x > hi[0] + e || p.y < lo[1] - e || p.y > hi[1] + e || p.z < lo[2] - e || p.z > hi[2] + e) return;
       const h = f.map(v => Math.round(v * 4));
       if (el === "?") el = sysKey === "fec" ? "Fe" : hsh(h[0], h[1], h[2], seed) < xBat(p.x) ? sol : host;
-      if (el === "oct") { const xB = xBat(p.x); if (hsh(h[0], h[1], h[2], seed + 7) >= xB / (1 - xB) * st.basis.length / st.oct.length) return; el = "C"; }
+      if (el === "oct") { const xB = xBat(p.x); gaps.push({ p, f, u: hsh(h[0], h[1], h[2], seed + 7), occ: xB / (1 - xB) * st.basis.length / st.oct.length }); return; }
       p.el = el; p.u = hsh(Math.round(f[0] * 400), Math.round(f[1] * 400), Math.round(f[2] * 400), seed + 3); out.push(p);
     };
     for (let i = I[0]; i <= I[1]; i++) for (let j = J[0]; j <= J[1]; j++) for (let k = K[0]; k <= K[1]; k++) {
@@ -4018,6 +4021,8 @@ function clipPlanesFrom(v, defs) {
       st.basis.forEach(b => site([i + b[0], j + b[1], k + b[2]], "?"));
       (st.oct || []).forEach(b => site([i + b[0], j + b[1], k + b[2]], "oct"));
     }
+    // exactly occ × (number of gaps) carbon atoms (each phase's carbon content is uniform), lowest site numbers first
+    if (gaps.length) gaps.sort((p, q) => p.u - q.u).slice(0, Math.round(gaps[0].occ * gaps.length)).forEach(g => { const p = g.p, f = g.f; p.el = "C"; p.u = hsh(Math.round(f[0] * 400), Math.round(f[1] * 400), Math.round(f[2] * 400), seed + 3); out.push(p); });
     return out;
   }
 
@@ -4115,6 +4120,7 @@ function clipPlanesFrom(v, defs) {
     group3.traverse(o => { if (o.isInstancedMesh) { if (o.dispose) o.dispose(); return; } if (o.geometry && o.geometry !== sph3) o.geometry.dispose(); });
     group3 = null; liqMeshes = []; bandMeshes = [];
   }
+  const tally = list => list.reduce((m, p) => (m[p.el] = (m[p.el] || 0) + 1, m), {});
   function draw3D(r) {
     const lv = lever(r), ph = phasesOf(r.k);
     const parts = ph.length === 1 ? [{ p: ph[0], c: C, f: 1 }] : [{ p: r.p1, c: r.c1, f: lv.w1 }, { p: r.p2, c: r.c2, f: lv.w2 }];
@@ -4146,6 +4152,7 @@ function clipPlanesFrom(v, defs) {
       } else if (!two) {
         const b = blocks3[0], cr = crystalAtoms(b.st, [W, H, D], b.xB, 11, coredNow ? coredAt(-W / 2, W / 2) : null);
         instanced(g, cr.atoms, 0); cells.push([b, -cr.size[0] / 2]); lo[0] = -cr.size[0] / 2; hi[0] = cr.size[0] / 2;
+        window.__atoms3 = [tally(cr.atoms)];   // for the tests: atoms of each element in the block
       } else {
         /* the two phases fill one block and meet at a gently wavy boundary, as they do inside a real alloy: no gap.
            Its mean position splits the block by the lever rule. */
@@ -4164,6 +4171,7 @@ function clipPlanesFrom(v, defs) {
             return ok;
           });
           instanced(g, a, 0); instanced(g, b, 0); cells.push([B, hi[0] - B.st.abc[0]]);
+          window.__atoms3 = [tally(a), tally(b)];
         } else {
           /* crystal | liquid: the boundary is two or three atom layers thick. Going toward the liquid, the crystal's
              sites are filled less and less often and their atoms vibrate more; liquid atoms beside the crystal are
