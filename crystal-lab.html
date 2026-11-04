@@ -749,7 +749,7 @@ body.present #lesson .lsn-step h3 { font-size: 25px; }
             <button class="chip tog" id="dislBurgers" aria-pressed="false">Burgers circuit</button>
           </div>
         </div>
-        <p class="cap">Stress is on a schematic 0–100 scale; about 95 is the ideal strength, the stress needed to slide a whole plane of a perfect crystal at once. The real gap is far larger than 8 versus 95: a pure copper crystal starts to slip at about 1 MPa, thousands of times below its ideal shear strength of several GPa. The Burgers circuit takes as many atom steps left as right, and as many down as up; if it does not close, the gap is the Burgers vector <b>b</b>. The shaded region is a second grain; in a real metal its rows of atoms are tilted, but they are drawn straight here for simplicity.</p>
+        <p class="cap">Stress is on a schematic 0–100 scale; about 95 is the ideal strength, the stress needed to slide a whole plane of a perfect crystal at once. The real gap is far larger than 8 versus 95: a pure copper crystal starts to slip at about 1 MPa, thousands of times below its ideal shear strength of several GPa. The Burgers circuit takes as many atom steps left as right, and as many down as up; if it does not close, the gap is the Burgers vector <b>b</b>. With the grain boundary on, the second grain (B) has its rows of atoms turned by 35°, as in Callister Fig. 7.14, so its slip plane points a different way from grain A's.</p>
         </div>
         <div class="vpane" data-view="types" hidden>
           <div class="group">
@@ -773,9 +773,10 @@ body.present #lesson .lsn-step h3 { font-size: 25px; }
             <div class="chips">
               <button class="chip tog" id="d3Plane" aria-pressed="true">Slip plane</button>
               <button class="chip tog" id="d3Bonds" aria-pressed="true">Bonds</button>
+              <button class="chip tog" id="d3GB" aria-pressed="false">Grain boundary</button>
             </div>
           </div>
-          <p class="cap">Drawn on a simple cubic lattice, as in Callister's Figs 4.4–4.6, so the planes are easy to follow; the bottom half is held still and each atom of the top half is coloured by how far it has moved: grey not yet, blue by one full <b>b</b>, in between at the dislocation. The shear stress (black arrows) pushes the top half toward +x. The <b>dislocation line</b> is the boundary between the part of the slip plane that has already slipped and the part that has not. Edge: <b>b</b> at right angles to the line, so the line moves along <b>b</b>. Screw: <b>b</b> parallel to the line, so the line moves across <b>b</b>. Mixed: one curved line that is edge at one face and screw at the other, with the same <b>b</b> everywhere. In copper (FCC), <b>b</b> = (a/2)⟨110⟩, 0.256 nm long, and slip is on {111} planes.</p>
+          <p class="cap">Drawn on a simple cubic lattice, as in Callister's Figs 4.4–4.6, so the planes are easy to follow; the bottom half is held still and each atom of the top half is coloured by how far it has moved: grey not yet, blue by one full <b>b</b>, in between at the dislocation. The shear stress (black arrows) pushes the top half toward +x. The <b>dislocation line</b> is the boundary between the part of the slip plane that has already slipped and the part that has not. Edge: <b>b</b> at right angles to the line, so the line moves along <b>b</b>. Screw: <b>b</b> parallel to the line, so the line moves across <b>b</b>. Mixed: one curved line that is edge at one face and screw at the other, with the same <b>b</b> everywhere. In copper (FCC), <b>b</b> = (a/2)⟨110⟩, 0.256 nm long, and slip is on {111} planes. With the grain boundary on, the right part of the block is a second grain whose rows are turned by 35° (as in Callister Fig. 7.14), so its slip plane points a different way and the dislocation stops at the boundary.</p>
         </div>
         <div class="vpane" data-view="load" hidden>
           <div class="group">
@@ -2709,7 +2710,7 @@ function clipPlanesFrom(v, defs) {
 (function dislocation() {
   const half = 11, NC = 2 * half + 1, ROWS = 5;
   let mode = "disl", xd = -15, t = 0, running = false, solute = false, gb = false, burgers = false, done = false, stepTo = null;
-  const SOL_X = -4, GB_X = 6;
+  const SOL_X = -4, GB_X = 6, GB_TH = 35 * Math.PI / 180;   // grain B is turned by 35°
   const tauIn = $("#dislTau");
   tauIn.addEventListener("input", () => { $("#dislTauOut").textContent = tauIn.value; draw(); });
   pressGroup($("#dislMode"), m => { mode = m; $("#dislStep").disabled = m === "rigid"; reset(); });
@@ -2737,7 +2738,7 @@ function clipPlanesFrom(v, defs) {
   }
   function shift(xb, yrow) {
     let s;
-    if (mode === "rigid") s = t;
+    if (mode === "rigid") s = gb ? t * clamp((GB_X + 0.5 - xb) / 2.5, 0, 1) : t;   // grain B holds the atoms next to it back
     else if (xd <= -15) s = 0;
     else if (xd >= 15) s = 1;
     else { const w = 0.9 + 0.55 * Math.abs(yrow); s = 0.5 - Math.atan((xb - xd) / w) / Math.PI; }
@@ -2756,25 +2757,49 @@ function clipPlanesFrom(v, defs) {
     const P = (i, j) => { const yrow = j + 0.5; return [ox + (i + shift(i, yrow)) * b, oy - yrow * b]; };
     const ink = tok("--ink"), muted = tok("--muted"), acc = tok("--accent"), amb = tok("--amber"), atomC = tok("--atom"), teal = tok("--teal");
     const mono = FONT.mono();
+    const inA = i => !gb || i <= GB_X;   // with a grain boundary, columns past it belong to grain B instead
+    /* grain B: the same simple square lattice, turned by GB_TH, so its rows and its slip plane point another way.
+       Its slip plane meets grain A's at the boundary. Sites too close to grain A's last column are left empty:
+       the misfit at a real boundary. */
+    let grainB = null;
     if (gb) {
-      const gx = ox + (GB_X + 0.5) * b;
-      ctx.fillStyle = rgba(teal, 0.1); ctx.fillRect(gx, oy - (ROWS + 0.6) * b, (half - GB_X + 1) * b, (2 * ROWS + 0.6) * b);
-      ctx.strokeStyle = teal; ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(gx, oy - (ROWS + 0.7) * b); ctx.lineTo(gx, oy + (ROWS + 0.2) * b); ctx.stroke(); ctx.setLineDash([]);
-      tag(ctx, "grain boundary", ox + (half + 0.9) * b, oy - (ROWS + 1.0) * b, "right", teal);
+      const gx = ox + (GB_X + 0.5) * b, wav = y => gx + 0.14 * b * Math.sin((y - oy) / b * 1.25);
+      const u = [Math.cos(GB_TH) * b, -Math.sin(GB_TH) * b], vv = [Math.sin(GB_TH) * b, Math.cos(GB_TH) * b];
+      const O = [wav(oy) + 0.5 * b, oy];
+      const yTop = oy - (ROWS - 0.5) * b - 0.3 * b, yBot = oy + (ROWS - 0.5) * b + 0.3 * b, xR = ox + (half + 0.45) * b;
+      const edgeA = []; for (let j = -ROWS; j < ROWS; j++) edgeA.push(P(GB_X, j));
+      const site = new Map();
+      for (let m = -40; m <= 40; m++) for (let n = -40; n <= 40; n++) {
+        const x = O[0] + m * u[0] + (n + 0.5) * vv[0], y = O[1] + m * u[1] + (n + 0.5) * vv[1];
+        if (y < yTop || y > yBot || x > xR || x < wav(y) + 0.36 * b) continue;
+        if (edgeA.some(q => Math.hypot(q[0] - x, q[1] - y) < 0.8 * b)) continue;
+        site.set(m + "," + n, [x, y]);
+      }
+      // where grain B's slip plane leaves the crystal
+      const tEnd = Math.min((xR - O[0]) / u[0], (O[1] - yTop) / -u[1]);
+      grainB = { gx, wav, O, u, yTop, yBot, site, end: [O[0] + tEnd * u[0], O[1] + tEnd * u[1]] };
+      ctx.strokeStyle = tok("--muted"); ctx.lineWidth = Math.max(1, b * 0.09); ctx.globalAlpha = 0.45;
+      site.forEach((q, k) => {
+        const [m, n] = k.split(",").map(Number);
+        [[m + 1, n], [m, n + 1]].forEach(([a, c]) => { const r2 = site.get(a + "," + c); if (r2) { ctx.beginPath(); ctx.moveTo(q[0], q[1]); ctx.lineTo(r2[0], r2[1]); ctx.stroke(); } });
+      });
+      ctx.globalAlpha = 1;
     }
     // bonds inside each half, coloured by strain
     const strainCol = d => { const e = Math.abs(d / b - 1); return e > 0.18 ? acc : e > 0.08 ? amb : muted; };
     ctx.lineWidth = Math.max(1, b * 0.09);
     for (let j = -ROWS; j < ROWS; j++) for (let i = -half; i <= half; i++) {
+      if (!inA(i)) continue;
       const [x1, y1] = P(i, j);
-      if (i < half) { const [x2, y2] = P(i + 1, j); ctx.strokeStyle = strainCol(Math.hypot(x2 - x1, y2 - y1)); ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+      if (i < half && inA(i + 1)) { const [x2, y2] = P(i + 1, j); ctx.strokeStyle = strainCol(Math.hypot(x2 - x1, y2 - y1)); ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
       if (j !== -1 && j < ROWS - 1) { const [x2, y2] = P(i, j + 1); ctx.strokeStyle = muted; ctx.globalAlpha = 0.45; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
     }
     ctx.globalAlpha = 1;
     // bonds across the slip plane
     let broken = 0;
-    const tops = []; for (let i = -half; i <= half; i++) tops.push(P(i, 0));
+    const tops = []; for (let i = -half; i <= half; i++) if (inA(i)) tops.push(P(i, 0));
     for (let i = -half; i <= half; i++) {
+      if (!inA(i)) continue;
       const [xb, yb] = P(i, -1);
       let best = null, bd = 1e9; tops.forEach(p => { const d = Math.abs(p[0] - xb); if (d < bd) { bd = d; best = p; } });
       const mis = bd / b;
@@ -2788,15 +2813,33 @@ function clipPlanesFrom(v, defs) {
       let bd = 1e9; for (let i = -half; i <= half; i++) { const d = Math.abs(i + shift(i, 0.5) - xd); if (d < bd) { bd = d; extra = i; } }
     }
     const r = b * 0.3;
+    if (grainB) grainB.site.forEach(q => ball(ctx, q[0], q[1], r, atomC));
     for (let j = -ROWS; j < ROWS; j++) for (let i = -half; i <= half; i++) {
+      if (!inA(i)) continue;
       const [px, py] = P(i, j);
       let fill = atomC, rr = r;
       if (extra !== null && i === extra && j >= 0) fill = acc;
       if (solute && i === SOL_X && j === -1) { fill = amb; rr = r * 1.5; }
       ball(ctx, px, py, rr, fill);
     }
-    // slip plane
-    ctx.strokeStyle = ink; ctx.globalAlpha = 0.6; ctx.setLineDash([2, 5]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(lx - 2, oy); ctx.lineTo(ox + (half + 0.9) * b, oy); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    // slip plane; with a grain boundary it turns where grain B's rows turn
+    ctx.strokeStyle = ink; ctx.globalAlpha = 0.6; ctx.setLineDash([2, 5]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(lx - 2, oy);
+    if (grainB) ctx.lineTo(grainB.wav(oy), oy);
+    else ctx.lineTo(ox + (half + 0.9) * b, oy);
+    ctx.stroke();
+    if (grainB) { ctx.globalAlpha = 0.85; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(grainB.wav(oy), oy); ctx.lineTo(grainB.end[0], grainB.end[1]); ctx.stroke(); }
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+    if (grainB) {
+      // the boundary itself: a thin, slightly wavy line, as in Callister Fig. 7.14
+      ctx.strokeStyle = teal; ctx.lineWidth = 2.5; ctx.beginPath();
+      for (let y = grainB.yTop - 0.45 * b; y <= grainB.yBot + 0.45 * b; y += 2) { const x = grainB.wav(y); y === grainB.yTop - 0.45 * b ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+      ctx.stroke();
+      tag(ctx, "grain boundary", ox + (half + 0.9) * b, oy - (ROWS + 1.0) * b, "right", teal);
+      ctx.fillStyle = muted; ctx.font = "600 13px " + mono; ctx.textAlign = "center";
+      const gy = oy + (ROWS + 0.85) * b;
+      ctx.fillText("Grain A", ox - (half - 2.5) * b, gy); ctx.fillText("Grain B", ox + (GB_X + 0.5 + (half - GB_X) / 2) * b, gy);
+      tag(ctx, "grain B's slip plane", grainB.end[0], grainB.end[1] - 0.75 * b, "right", muted);
+    }
     ctx.fillStyle = muted; ctx.font = (w < 520 ? "10px " : "12px ") + mono; ctx.textAlign = "right";
     if (w < 520) { ctx.fillText("slip", lx - 6, oy - 2); ctx.fillText("plane", lx - 6, oy + 10); } else ctx.fillText("slip plane", lx - 8, oy + 4);
     if (extra !== null) {
@@ -2837,15 +2880,16 @@ function clipPlanesFrom(v, defs) {
     const arrow = (x1, y1, x2) => { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y1); ctx.stroke(); const d = Math.sign(x2 - x1); ctx.beginPath(); ctx.moveTo(x2 + d * 2, y1); ctx.lineTo(x2 - d * 9, y1 - 6); ctx.lineTo(x2 - d * 9, y1 + 6); ctx.fill(); };
     arrow(ox - len / 2, ay, ox + len / 2); arrow(ox + len / 2, by2, ox - len / 2);
     ctx.fillStyle = muted; ctx.font = "12px " + mono; ctx.textAlign = "left"; ctx.fillText("shear stress τ = " + tau, ox + len / 2 + 10, ay + 4);
-    if (done || (mode === "disl" && xd > half + 0.5)) { ctx.fillStyle = acc; ctx.font = "600 12px " + mono; ctx.textAlign = "right"; ctx.fillText("slip step", ox + (half + 0.9) * b, oy - (ROWS + 0.25) * b); }
-    $("#dislBroken").textContent = broken + " of " + NC;
+    if (!gb && (done || (mode === "disl" && xd > half + 0.5))) { ctx.fillStyle = acc; ctx.font = "600 12px " + mono; ctx.textAlign = "right"; ctx.fillText("slip step", ox + (half + 0.9) * b, oy - (ROWS + 0.25) * b); }
+    $("#dislBroken").textContent = broken + " of " + (gb ? GB_X + half + 1 : NC);
     const nd = need(mode === "rigid" ? 0 : clamp(xd, -half, half));
     $("#dislNeed").textContent = (nd > 100 ? "blocked (idealised)" : String(nd)) + (mode === "rigid" ? "  (ideal strength)" : "");
     let st;
-    if (done || (mode === "disl" && xd >= 15)) st = "Slipped by one atom spacing. Look for the step at each end.";
+    if (done && gb) st = "Grain A slipped by one atom spacing, except next to the boundary, where grain B holds its atoms back (the red, stretched bonds). Grain B did not slip.";
+    else if (done || (mode === "disl" && xd >= 15)) st = "Slipped by one atom spacing. Look for the step at each end.";
     else if (stepTo !== null) st = "Stepping one atom spacing.";
     else if (!running) st = mode === "rigid" ? "Press Push. The whole top half must move together." : "Press Push, or step it along one atom at a time.";
-    else if (tau < nd) st = nd > 100 ? "Stuck at the grain boundary. This is an idealised boundary that never lets a dislocation through; in a real metal the dislocations piling up behind it can start slip in the next grain." : (mode === "rigid" ? "Not enough stress: every bond holds. Raise it toward 95." : nd > 10 ? "Pinned by the solute atom. Raise the stress to break free." : "Below the stress needed to move it. Raise it.");
+    else if (tau < nd) st = nd > 100 ? "Stuck at the grain boundary. Grain B's rows of atoms, and so its slip plane, point a different way, so the dislocation cannot carry straight on. This idealised boundary never lets it through; in a real metal the dislocations piling up behind it can start slip in the next grain." : (mode === "rigid" ? "Not enough stress: every bond holds. Raise it toward 95." : nd > 10 ? "Pinned by the solute atom. Raise the stress to break free." : "Below the stress needed to move it. Raise it.");
     else st = mode === "rigid" ? "Every bond across the plane must give way at once." : "Gliding: only the atoms at the red symbol rearrange, switching bonding partners one row at a time.";
     $("#dislStatus").textContent = st;
   }
@@ -2935,7 +2979,10 @@ function clipPlanesFrom(v, defs) {
     catch (e) { $("#disl3").textContent = "This 3D view needs WebGL, which this browser could not start. The other two views still work."; return null; }
     // simple cubic block, one atom spacing = 1 = |b|. The slip plane is y = 0, between the two middle layers.
     const NX = 12, NY = 8, NZ = 8, X0 = NX / 2, Z0 = NZ / 2, MID = NY / 2;
-    let kind = "edge", p = 0.35, playing = false, showPlane = true, showBonds = true;
+    let kind = "edge", p = 0.35, playing = false, showPlane = true, showBonds = true, gbOn = false;
+    /* grain boundary: the plane x = XGB. Grain A (left) is the block above; grain B (right) is the same simple cubic
+       lattice turned by GTH about z, with its slip plane starting where grain A's meets the boundary. */
+    const XGB = 2, GTH = 35 * Math.PI / 180, gu = [Math.cos(GTH), Math.sin(GTH)], gv = [-Math.sin(GTH), Math.cos(GTH)], GO = [XGB + 0.45, 0];
     const at = [];
     for (let i = 0; i < NX; i++) for (let j = 0; j < NY; j++) for (let k = 0; k < NZ; k++) at.push({ i, j, k, x0: i + 0.5 - X0, y: j + 0.5 - MID, z: k + 0.5 - Z0, x: 0 });
     const id = (i, j, k) => (i * NY + j) * NZ + k;
@@ -2976,6 +3023,36 @@ function clipPlanesFrom(v, defs) {
     shearTop.traverse(o => { o.renderOrder = 0; }); shearBot.traverse(o => { o.renderOrder = 0; });
     aim(shearTop, [-2.25, MID + 0.9, Z0 - 0.5], [1, 0, 0]); aim(shearBot, [2.25, -MID - 0.9, Z0 - 0.5], [-1, 0, 0]);
     v.root.add(atomsIM, bonds, plane, fitMesh, bArrow, mvArrow, shearTop, shearBot);
+    // grain B never slips, so its atoms and bonds are built once (filled in by buildGB, after the helpers below)
+    let gbIM = null, gbBonds = null, gbWall = null, gbPlane = null, gbBondMat = null, gbWallMat = null;
+    const buildGB = () => {
+    const gbSites = new Map();
+    for (let m = -20; m <= 20; m++) for (let n = -20; n <= 20; n++) {
+      const x = GO[0] + m * gu[0] + (n + 0.5) * gv[0], y = GO[1] + m * gu[1] + (n + 0.5) * gv[1];
+      if (x < XGB + 0.36 || x > X0 + 0.05 || Math.abs(y) > MID - 0.2) continue;
+      if (Math.hypot(x - 1.5, y - Math.round(y - 0.5) - 0.5) < 0.8) continue;   // too close to grain A's last column
+      for (let k = 0; k < NZ; k++) gbSites.set(m + "," + n + "," + k, [x, y, k + 0.5 - Z0]);
+    }
+    gbIM = new THREE.InstancedMesh(atomsIM.geometry, atomMat, gbSites.size); gbIM.userData.noFit = true;
+    const gbBondPos = [];
+    let gi = 0;
+    gbSites.forEach((q, key) => {
+      m4.compose(pv.set(q[0], q[1], q[2]), q0, sv.setScalar(0.17)); gbIM.setMatrixAt(gi++, m4);
+      const [m, n, k] = key.split(",").map(Number);
+      [[m + 1, n, k], [m, n + 1, k], [m, n, k + 1]].forEach(c => { const r2 = gbSites.get(c.join(",")); if (r2) gbBondPos.push(...q, ...r2); });
+    });
+    const gbBondGeo = new THREE.BufferGeometry(); gbBondGeo.setAttribute("position", new THREE.Float32BufferAttribute(gbBondPos, 3));
+    gbBondMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.75 });
+    gbBonds = new THREE.LineSegments(gbBondGeo, gbBondMat); gbBonds.userData.noFit = true;
+    gbWallMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false });
+    gbWall = new THREE.Mesh(new THREE.PlaneGeometry(NZ + 0.6, 2 * MID + 0.6), gbWallMat);
+    gbWall.rotation.y = Math.PI / 2; gbWall.position.x = XGB; gbWall.userData.noFit = true;
+    const tB = Math.min((X0 + 0.5 - GO[0]) / gu[0], (MID - 0.2) / gu[1]);
+    const gbPlaneGeo = new THREE.PlaneGeometry(tB, NZ + 1.2); gbPlaneGeo.rotateX(-Math.PI / 2); gbPlaneGeo.rotateZ(GTH);
+    gbPlaneGeo.translate(GO[0] + gu[0] * tB / 2, GO[1] + gu[1] * tB / 2, 0);
+    gbPlane = new THREE.Mesh(gbPlaneGeo, planeMat); gbPlane.userData.noFit = true;
+    v.root.add(gbIM, gbBonds, gbWall, gbPlane);
+    };
     v.refit(true); v.fitR *= 0.86;
 
     // where the line is, for progress p: it enters from outside the block and leaves on the far side
@@ -2991,22 +3068,30 @@ function clipPlanesFrom(v, defs) {
     const col = new THREE.Color(), m4 = new THREE.Matrix4(), q0 = new THREE.Quaternion(), pv = new THREE.Vector3(), sv = new THREE.Vector3();
     let C = null;
     const PLANE_BLUE = "#3f7fd0";
+    buildGB();
     function colours() {
       const t = c => new THREE.Color(lin(tok(c)));
       C = { atom: t("--atom"), acc: t("--accent"), amb: t("--amber"), muted: t("--muted"), ink: t("--ink"), blue: new THREE.Color(lin(PLANE_BLUE)) };
       lineMat.color.copy(C.acc); bMat.color.set(lin(tok("--teal"))); mvMat.color.copy(C.amb); shearMat.color.copy(C.ink); planeMat.color.copy(C.muted);
+      gbBondMat.color.copy(C.muted); gbWallMat.color.set(lin(tok("--teal")));
+      for (let i = 0; i < gbIM.count; i++) gbIM.setColorAt(i, C.atom);
+      if (gbIM.instanceColor) gbIM.instanceColor.needsUpdate = true;
     }
     function update() {
       if (!C) colours();
-      const L = lineAt();
-      at.forEach(a => { const s = a.y > 0 ? slipped(a.x0, a.z, a.y, L) : 0; a.s = s; a.x = a.x0 + s; });
+      const L0 = lineAt(), stuck = gbOn && kind === "edge" && L0 > XGB - 1;
+      const L = stuck ? XGB - 1 : L0;   // an edge line cannot get past the boundary: it waits there
+      const inA = a => !gbOn || a.x0 < XGB;
+      // next to a boundary grain B holds grain A's atoms back, so the slip dies away over the last two columns
+      const hold = a => gbOn ? clamp((XGB - a.x0) / 2.5, 0, 1) : 1;
+      at.forEach(a => { const s = a.y > 0 ? slipped(a.x0, a.z, a.y, L) * hold(a) : 0; a.s = s; a.x = a.x0 + s; });
       // the extra half-plane of an edge dislocation: in each top layer, the column nearest the line
       const extra = kind === "edge" && L > -X0 && L < X0;   // its top atoms sit halfway between two bottom ones
       at.forEach((a, n) => {
         let c = a.y > 0 ? col.copy(C.atom).lerp(C.blue, a.s) : C.atom;   // grey: not moved yet; blue: moved by one b
         if (extra && a.y > 0 && Math.abs(a.x0 - L) < 0.5) c = C.acc;
         atomsIM.setColorAt(n, c);
-        pv.set(a.x, a.y, a.z); sv.setScalar(0.17); m4.compose(pv, q0, sv); atomsIM.setMatrixAt(n, m4);
+        pv.set(a.x, a.y, a.z); sv.setScalar(inA(a) ? 0.17 : 0); m4.compose(pv, q0, sv); atomsIM.setMatrixAt(n, m4);
       });
       atomsIM.instanceMatrix.needsUpdate = true; if (atomsIM.instanceColor) atomsIM.instanceColor.needsUpdate = true;
       // bonds: grey, amber when stretched or bent, red when badly; across the slip plane each bottom atom bonds to
@@ -3014,19 +3099,25 @@ function clipPlanesFrom(v, defs) {
       let n = 0;
       const put = (a, b, c) => { bondPos.set([a.x, a.y, a.z, b.x, b.y, b.z], n * 6); bondCol.set([c.r, c.g, c.b, c.r, c.g, c.b], n * 6); n++; };
       const strainC = (a, b) => { const e = Math.abs(Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) - 1); return e > 0.16 ? C.acc : e > 0.06 ? C.amb : C.muted; };
-      pairs.forEach(([i, j]) => put(at[i], at[j], strainC(at[i], at[j])));
+      pairs.forEach(([i, j]) => { if (inA(at[i]) && inA(at[j])) put(at[i], at[j], strainC(at[i], at[j])); });
       for (let i = 0; i < NX; i++) for (let k = 0; k < NZ; k++) {
         const lo = at[id(i, MID - 1, k)]; let best = null, bd = 9;
-        for (let q = Math.max(0, i - 1); q <= Math.min(NX - 1, i + 1); q++) { const hi = at[id(q, MID, k)], d = Math.abs(hi.x - lo.x); if (d < bd) { bd = d; best = hi; } }
+        if (!inA(lo)) continue;
+        for (let q = Math.max(0, i - 1); q <= Math.min(NX - 1, i + 1); q++) { const hi = at[id(q, MID, k)], d = Math.abs(hi.x - lo.x); if (inA(hi) && d < bd) { bd = d; best = hi; } }
         if (bd < 0.36) put(lo, best, bd > 0.16 ? C.amb : C.muted);
       }
       bondGeo.setDrawRange(0, n * 2); bondGeo.attributes.position.needsUpdate = true; bondGeo.attributes.color.needsUpdate = true;
       bonds.visible = showBonds; plane.visible = showPlane;
+      gbIM.visible = gbWall.visible = gbOn; gbBonds.visible = gbOn && showBonds; gbPlane.visible = gbOn && showPlane;
+      // grain A's slip plane stops at the boundary
+      const wA = gbOn ? XGB + X0 + 0.6 : NX + 1.2;
+      plane.scale.x = wA / (NX + 1.2); plane.position.x = gbOn ? (XGB - X0 - 0.6) / 2 : 0;
       // the dislocation line, where it lies inside the block
       const pts = [];
       if (kind === "edge" && Math.abs(L) < X0) for (let z = -Z0; z <= Z0 + 1e-9; z += Z0) pts.push(new THREE.Vector3(L, 0, z));
-      if (kind === "screw" && Math.abs(L) < Z0) for (let x = -X0; x <= X0 + 1e-9; x += X0) pts.push(new THREE.Vector3(x, 0, L));
-      if (kind === "mixed" && L > 0.3) for (let k = 0; k <= 48; k++) { const th = k / 48 * Math.PI / 2, x = -X0 + L * Math.cos(th), z = Z0 - L * Math.sin(th); if (x <= X0 + 1e-6 && z >= -Z0 - 1e-6) pts.push(new THREE.Vector3(x, 0, z)); }
+      const xEnd = gbOn ? XGB - 0.5 : X0;   // with a boundary the line ends on it
+      if (kind === "screw" && Math.abs(L) < Z0) for (let k = 0; k <= 2; k++) pts.push(new THREE.Vector3(-X0 + (xEnd + X0) * k / 2, 0, L));
+      if (kind === "mixed" && L > 0.3) for (let k = 0; k <= 48; k++) { const th = k / 48 * Math.PI / 2, x = -X0 + L * Math.cos(th), z = Z0 - L * Math.sin(th); if (x <= xEnd + 1e-6 && z >= -Z0 - 1e-6) pts.push(new THREE.Vector3(x, 0, z)); }
       if (lineMesh) { v.root.remove(lineMesh); lineMesh.geometry.dispose(); lineMesh = null; }
       const inside = pts.length > 1;
       if (inside) { lineMesh = over(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.11, 8, false), lineMat)); v.root.add(lineMesh); }
@@ -3037,7 +3128,7 @@ function clipPlanesFrom(v, defs) {
         aim(bArrow, [mid.x, mid.y + 0.02, mid.z], [1, 0, 0]);
         const dl = Math.hypot(dir[0], dir[2]); aim(mvArrow, [mid.x, mid.y - 0.02, mid.z], [dir[0] / dl, 0, dir[2] / dl]);
       }
-      text(L, inside);
+      text(L, inside, stuck);
       v.dirty = true;
     }
     const REL = {
@@ -3045,11 +3136,13 @@ function clipPlanesFrom(v, defs) {
       screw: ["screw", "b parallel to the line", "across b, at right angles to the shear"],
       mixed: ["mixed", "edge at the front face, screw at the left face", "outward: the loop grows"]
     };
-    function text(L, inside) {
+    function text(L, inside, stuck) {
       const r = REL[kind];
       $("#d3Type").textContent = r[0]; $("#d3Rel").textContent = r[1]; $("#d3Moves").textContent = r[2];
       let st;
-      if (p < 0.02 || (!inside && p < 0.5)) st = "A perfect crystal: the dislocation has not entered yet.";
+      if (stuck) st = "Stopped at the grain boundary. In grain B the rows of atoms, and so its slip plane, are turned by 35°, so the line cannot carry straight on. Dislocations that follow pile up behind it; that is why more boundaries (smaller grains) make a metal stronger.";
+      else if (gbOn && (p > 0.98 || (!inside && p >= 0.5))) st = "Grain A has slipped by one atom spacing b (blue), except right next to the boundary, where grain B holds its atoms back. Grain B has not moved at all: its slip plane is turned by 35°, so the slip cannot carry on into it.";
+      else if (p < 0.02 || (!inside && p < 0.5)) st = "A perfect crystal: the dislocation has not entered yet.";
       else if (p > 0.98 || !inside) st = "Slipped by one atom spacing b: every top atom has moved (all blue): the top half now sticks out by one atom at the right face and stops one atom short at the left. Edge, screw and mixed all end with this same step, because b is the same; only the direction the line travelled differs.";
       else st = kind === "edge" ? "Blue atoms have already moved one atom spacing along b; grey ones have not. The line is the border. There the top half has one plane of atoms more than the bottom: the extra half-plane (red)." :
         kind === "screw" ? "Blue atoms (in front of the line) have moved one spacing along b, parallel to the line; grey ones (behind) have not. On the left face the moved and unmoved parts join through a twist around the line: a spiral ramp." :
@@ -3064,7 +3157,8 @@ function clipPlanesFrom(v, defs) {
       const dot = c => '<svg width="22" height="10" aria-hidden="true"><circle cx="11" cy="5" r="4.5" fill="' + c + '"/></svg>';
       const gb = '<svg width="22" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4.2" fill="' + tok("--atom") + '"/><circle cx="16" cy="5" r="4.2" fill="' + PLANE_BLUE + '"/></svg>';
       $("#d3Key").innerHTML = sw(gb, "top half: not moved yet → moved by b") + sw(ln(tok("--accent")), "dislocation line") + sw(ar(tok("--teal")), "b, the Burgers vector") + sw(ar(tok("--amber")), "the line moves") +
-        sw(ar(tok("--ink")), "shear stress") + (kind === "edge" ? sw(dot(tok("--accent")), "extra half-plane") : "");
+        sw(ar(tok("--ink")), "shear stress") + (kind === "edge" ? sw(dot(tok("--accent")), "extra half-plane") : "") +
+        (gbOn ? sw('<svg width="22" height="10" aria-hidden="true"><rect x="9" y="0" width="4" height="10" fill="' + tok("--teal") + '"/></svg>', "grain boundary (grain B on the right)") : "");
     }
     const VIEW = { edge: [0.42, 0.62], screw: [0.38, 1.12], mixed: [0.5, 0.85] };
     pressGroup($("#d3Kind"), k => { kind = k; [v.rotX, v.rotY] = VIEW[k]; v.dirty = true; playing = false; $("#d3Go").textContent = "Push it through"; key(); update(); });
@@ -3077,6 +3171,8 @@ function clipPlanesFrom(v, defs) {
     $("#d3Reset").addEventListener("click", () => { p = 0; playing = false; $("#d3Go").textContent = "Push it through"; $("#d3Pos").value = 0; update(); });
     toggle($("#d3Plane"), on => { showPlane = on; update(); });
     toggle($("#d3Bonds"), on => { showBonds = on; update(); });
+    // look nearly along z, so grain B's tilted rows read as they do in the 2D view and Callister Fig. 7.14
+    toggle($("#d3GB"), on => { gbOn = on; if (on) { v.rotX = 0.28; v.rotY = 0.28; } else [v.rotX, v.rotY] = VIEW[kind]; key(); update(); });
     key(); update();
     return {
       update, size: () => v.size(),
@@ -3085,7 +3181,7 @@ function clipPlanesFrom(v, defs) {
         if (playing) { p = Math.min(1, p + dt * 0.16); $("#d3Pos").value = (p * 100).toFixed(1); if (p >= 1) { playing = false; $("#d3Go").textContent = "Push it through"; } update(); }
         v.render();
       },
-      state: () => ({ kind, p, playing })
+      state: () => ({ kind, p, playing, gb: gbOn })
     };
   })();
 
