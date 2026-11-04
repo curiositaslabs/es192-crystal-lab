@@ -561,10 +561,17 @@ body.present #lesson .lsn-step h3 { font-size: 25px; }
       </div>
       <aside class="side">
         <div class="sidehead">
-          <h2>Stack close-packed layers</h2>
-          <p class="desc">Every close-packed layer looks the same: each atom touches six others. A new layer settles into the dips of the one below. There are two sets of dips to choose from, and that choice decides the crystal. The coloured dots on the top layer show where the next layer can sit.</p>
+          <h2 id="stackH">Stack close-packed layers</h2>
+          <p class="desc" id="stackDesc">Every close-packed layer looks the same: each atom touches six others. A new layer settles into the dips of the one below. There are two sets of dips to choose from, and that choice decides the crystal. The coloured dots on the top layer show where the next layer can sit.</p>
         </div>
         <div class="explore" data-guide="stack"></div>
+        <div class="group">
+          <h3>Kind of layer</h3>
+          <div class="seg g2" id="stackLayer">
+            <button data-v="cp" aria-pressed="true">Close-packed (FCC, HCP)</button>
+            <button data-v="sq">Square (BCC)</button>
+          </div>
+        </div>
         <div class="group">
           <h3>Drop the next layer into</h3>
           <div class="chips" id="stackAdd">
@@ -583,10 +590,20 @@ body.present #lesson .lsn-step h3 { font-size: 25px; }
           <p class="status" id="stackVerdict"></p>
         </div>
         <div class="group">
+          <h3>Find the unit cell</h3>
+          <div class="chips">
+            <button class="chip tog" id="stackCell" aria-pressed="false">Show one unit cell</button>
+            <button class="chip tog" id="stackUpright" aria-pressed="false" hidden>Stand the cube upright</button>
+            <button class="chip tog" id="stackSmall" aria-pressed="false">Small atoms</button>
+          </div>
+          <p class="status" id="stackCellNote"></p>
+        </div>
+        <div class="group">
           <h3>Examples</h3>
           <div class="chips">
             <button class="chip" data-preset="ABABAB">ABAB… (HCP)</button>
             <button class="chip" data-preset="ABCABC">ABCABC… (FCC)</button>
+            <button class="chip" data-preset="sq:ABABAB">ABAB… square (BCC)</button>
             <button class="chip" data-preset="ABCABABC">Stacking fault</button>
           </div>
         </div>
@@ -2206,42 +2223,175 @@ function clipPlanesFrom(v, defs) {
   let v;
   try { if (!has3D) throw new Error("no three.js"); v = makeViewer($("#stackStage"), { rotX: 0.42, rotY: 0.5 }); }
   catch (e) { $("#stackStage").textContent = "This 3D view needs WebGL, which this browser could not start. The other tabs still work."; return; }
-  const H = Math.sqrt(2 / 3), RMAX = 2.75;
+  /* atoms have diameter 1. Close-packed layers sit sqrt(2/3) apart. Square (BCC) layers: atoms touch only along the
+     cube's long diagonal, so the cube edge is 2/sqrt(3) and the layers sit half an edge apart. */
+  const H = Math.sqrt(2 / 3), RMAX = 2.75, AB = 2 / Math.sqrt(3), HS = AB / 2;
   const OFF = { A: [0, 0], B: [0.5, Math.sqrt(3) / 6], C: [0, Math.sqrt(3) / 3] };
+  const SQ = { A: [AB / 2, AB / 2], B: [0, 0] };
   const COL = { A: "--accent", B: "--teal", C: "--amber" };
-  let seq = ["A", "B"], glass = false, drops = [], topView = false, markers = [];
+  const NAME = { hcp: "hexagonal close-packed (HCP)", fcc: "face-centred cubic (FCC)", bcc: "body-centred cubic (BCC)" };
+  const DESC = {
+    cp: "Every close-packed layer looks the same: each atom touches six others. A new layer settles into the dips of the one below. There are two sets of dips to choose from, and that choice decides the crystal. The coloured dots on the top layer show where the next layer can sit.",
+    sq: "In a square layer each atom has four neighbours, slightly apart, so this layer is not close-packed. A new layer sinks into the hollows between four atoms. There is only one set of hollows, so the stack can only go A B A B. The dots show where the next layer can sit."
+  };
+  let seq = ["A", "B"], layer = "cp", glass = false, cellOn = false, cell = null, drops = [], topView = false, markers = [];
+  let G = null, upright = false, tilt = { t: 0, to: 0 }, small = false, dimMats = [];   // G holds the whole stack; tilt turns the FCC cube upright
+  const gap = () => layer === "sq" ? HS : H;
   function sites(letter, rmax) {
-    const o = OFF[letter], out = [];
+    const out = [];
     for (let i = -8; i <= 8; i++) for (let j = -8; j <= 8; j++) {
-      const u = i + j * 0.5 + o[0], w = j * Math.sqrt(3) / 2 + o[1];
+      let u, w;
+      if (layer === "sq") { u = i * AB + SQ[letter][0]; w = j * AB + SQ[letter][1]; }
+      else { u = i + j * 0.5 + OFF[letter][0]; w = j * Math.sqrt(3) / 2 + OFF[letter][1]; }
       if (Math.hypot(u, w) < rmax) out.push([u, w]);
     }
     return out;
   }
+  /* which crystal the stack is: "hcp", "fcc", "bcc", "fault", "mixed", or null (too short) */
+  function kind() {
+    if (seq.length < 3) return null;
+    if (layer === "sq") return "bcc";   // A on A is not allowed, so square layers always alternate
+    const env = [];
+    for (let i = 1; i < seq.length - 1; i++) env.push(seq[i - 1] === seq[i + 1] ? "h" : "c");
+    if (env.every(e => e === "h")) return "hcp";
+    if (env.every(e => e === "c")) return "fcc";
+    return env.filter(e => e === "c").length >= env.length / 2 ? "fault" : "mixed";
+  }
+  /* one conventional unit cell, as the list of atoms in it ({k: layer index, u, w}) plus its shape */
+  function findCell() {
+    const K = kind(), n = seq.length;
+    if (!["hcp", "fcc", "bcc"].includes(K)) return null;
+    const span = K === "fcc" ? 4 : 3;
+    if (n < span) return null;
+    // start the cell on an A layer, as textbook pictures do, as near the middle of the stack as possible
+    const mid = (n - span) / 2;
+    let k = -1;
+    for (let i = 0; i <= n - span; i++) if (seq[i] === "A" && (k < 0 || Math.abs(i - mid) < Math.abs(k - mid))) k = i;
+    if (k < 0) k = Math.floor(mid);
+    const atoms = [];
+    if (K === "bcc") {
+      [k, k + 2].forEach(L => [-1, 1].forEach(a => [-1, 1].forEach(b => atoms.push({ k: L, u: a * AB / 2, w: b * AB / 2 }))));
+      atoms.push({ k: k + 1, u: 0, w: 0 });
+      return { kind: K, k, atoms, shape: { type: "box", c: [0, 0], s: AB } };
+    }
+    const o = OFF[seq[k]];
+    if (K === "hcp") {
+      [k, k + 2].forEach(L => {
+        atoms.push({ k: L, u: o[0], w: o[1] });
+        for (let i = 0; i < 6; i++) atoms.push({ k: L, u: o[0] + Math.cos(i * Math.PI / 3), w: o[1] + Math.sin(i * Math.PI / 3) });
+      });
+      sites(seq[k + 1], RMAX).filter(([u, w]) => Math.hypot(u - o[0], w - o[1]) < 0.6).forEach(([u, w]) => atoms.push({ k: k + 1, u, w }));
+      return { kind: K, k, atoms, shape: { type: "hex", c: o } };
+    }
+    /* FCC: the cube stands on a corner. Its three edges from the bottom corner each climb one layer and point
+       away from the three dips of the next layer (edge = -2 x the step to the nearest dip). */
+    const d = [OFF[seq[k + 1]][0] - o[0], OFF[seq[k + 1]][1] - o[1]];
+    let t0 = null;
+    for (let i = -2; i <= 2 && !t0; i++) for (let j = -2; j <= 2 && !t0; j++) {
+      const x = d[0] - (i + j * 0.5), y = d[1] - j * Math.sqrt(3) / 2;
+      if (Math.abs(Math.hypot(x, y) - 1 / Math.sqrt(3)) < 1e-6) t0 = [x, y];
+    }
+    if (!t0) return null;
+    const rot = (p, a) => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a)];
+    const e = [t0, rot(t0, 2 * Math.PI / 3), rot(t0, -2 * Math.PI / 3)].map(t => [-2 * t[0], -2 * t[1]]);
+    const pt = (x, y, z) => ({ k: k + Math.round(x + y + z), u: o[0] + x * e[0][0] + y * e[1][0] + z * e[2][0], w: o[1] + x * e[0][1] + y * e[1][1] + z * e[2][1] });
+    for (let x = 0; x <= 1; x++) for (let y = 0; y <= 1; y++) for (let z = 0; z <= 1; z++) atoms.push(pt(x, y, z));
+    [[0.5, 0.5, 0], [0.5, 0.5, 1], [0.5, 0, 0.5], [0.5, 1, 0.5], [0, 0.5, 0.5], [1, 0.5, 0.5]].forEach(c => atoms.push(pt(...c)));
+    return { kind: K, k, atoms, shape: { type: "cube", o, e } };
+  }
+  /* the cell itself: a lightly shaded, see-through solid (no edge lines: lines in this lab mean bonds) */
+  function cellSolid(sh, y0) {
+    let g;
+    const yk = y0 + cell.k * gap();
+    if (sh.type === "box") { g = new THREE.BoxGeometry(sh.s, 2 * HS, sh.s); g.translate(sh.c[0], yk + HS, sh.c[1]); }
+    else if (sh.type === "hex") { g = new THREE.CylinderGeometry(1, 1, 2 * H, 6, 1, false, Math.PI / 2); g.translate(sh.c[0], yk + H, sh.c[1]); }
+    else {
+      const P = (x, y, z) => [sh.o[0] + x * sh.e[0][0] + y * sh.e[1][0] + z * sh.e[2][0], yk + (x + y + z) * H, sh.o[1] + x * sh.e[0][1] + y * sh.e[1][1] + z * sh.e[2][1]];
+      const quads = [[[0,0,0],[1,0,0],[1,1,0],[0,1,0]], [[0,0,1],[1,0,1],[1,1,1],[0,1,1]], [[0,0,0],[1,0,0],[1,0,1],[0,0,1]],
+                     [[0,1,0],[1,1,0],[1,1,1],[0,1,1]], [[0,0,0],[0,1,0],[0,1,1],[0,0,1]], [[1,0,0],[1,1,0],[1,1,1],[1,0,1]]];
+      const pos = [];
+      quads.forEach(q => { const c = q.map(p => P(...p)); [c[0], c[1], c[2], c[0], c[2], c[3]].forEach(p => pos.push(...p)); });
+      g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    }
+    g = g.index ? g.toNonIndexed() : g; g.computeVertexNormals();
+    const m = mat(tok("--ink"), { transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide, roughness: 0.9, metalness: 0 });
+    const mesh = new THREE.Mesh(g, m); mesh.renderOrder = 2; mesh.userData.noFit = true;
+    return mesh;
+  }
+  /* turn the model so the new cell reads at once: FCC almost face-on to one cube face (the cube is tilted onto
+     its corner, so the default view hides it), HCP and BCC a little from above */
+  let aimed = null;
+  function aim() {
+    if (!cell) { aimed = null; return; }
+    if (aimed === cell.kind) return;
+    aimed = cell.kind; topView = false; markers.forEach(g => { g.visible = true; }); setFov(30);
+    if (cell.kind === "fcc" && upright) { v.rotX = 0.3; v.rotY = 0.35; }   // mostly face-on: nearer the diagonal it looks like a hexagon
+    else if (cell.kind === "fcc") {
+      const e = cell.shape.e[0], L = Math.hypot(e[0], H, e[1]), nx = e[0] / L, ny = H / L, nz = e[1] / L;
+      v.rotX = Math.asin(ny) + 0.12; v.rotY = Math.atan2(-nx, nz) + 0.3;
+    } else { v.rotX = 0.38; v.rotY = cell.kind === "bcc" ? 0.55 : 0.35; }
+    v.zoom = 0.85; v.dirty = true;
+  }
   function build(animateTop) {
-    v.clear(); drops = [];
-    const n = seq.length, y0 = -(n - 1) * H / 2;
+    v.clear(); drops = []; dimMats = [];
+    const n = seq.length, y0 = -(n - 1) * gap() / 2;
+    cell = cellOn ? findCell() : null;
+    G = new THREE.Group(); v.root.add(G);
+    if (cell && cell.kind === "fcc") {
+      /* the turn that lays the cube's three edges along x, y, z, about the cube's centre */
+      const sh = cell.shape, E = sh.e.map(e => new THREE.Vector3(e[0], H, e[1]).normalize());
+      if (E[0].clone().cross(E[1]).dot(E[2]) < 0) E.reverse();
+      cell.q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(E[0], E[1], E[2])).invert();
+      cell.c = new THREE.Vector3(sh.o[0], y0 + cell.k * H, sh.o[1]).add(new THREE.Vector3(sh.e[0][0] + sh.e[1][0] + sh.e[2][0], 3 * H, sh.e[0][1] + sh.e[1][1] + sh.e[2][1]).multiplyScalar(0.5));
+    }
+    if (!(cell && cell.kind === "fcc")) { upright = false; tilt = { t: 0, to: 0 }; }
+    aim();
+    const inCell = (k, u, w) => !!cell && cell.atoms.some(a => a.k === k && Math.abs(a.u - u) < 1e-3 && Math.abs(a.w - w) < 1e-3);
+    const faint = cell || glass;
     seq.forEach((L, k) => {
       const g = new THREE.Group();
-      const m = mat(tok(COL[L]), glass ? { transparent: true, opacity: 0.5, depthWrite: false } : {});
-      sites(L, RMAX).forEach(([u, w]) => { const s = new THREE.Mesh(sphereGeo, m); s.scale.setScalar(0.495); s.position.set(u, 0, w); g.add(s); });
-      g.position.y = y0 + k * H; v.root.add(g);
+      const solid = mat(tok(COL[L]));
+      const dim = mat(tok(COL[L]), { transparent: true, opacity: dimOpacity(), depthWrite: false }); dimMats.push(dim);
+      sites(L, RMAX).forEach(([u, w]) => {
+        const hit = inCell(k, u, w);
+        const s = new THREE.Mesh(sphereGeo, faint && !hit ? dim : solid);
+        s.scale.setScalar(small ? 0.17 : hit ? 0.5 : 0.495); s.position.set(u, 0, w); s.userData.inCell = hit; g.add(s);
+      });
+      g.position.y = y0 + k * gap(); G.add(g);
       if (animateTop && k === n - 1 && !reduceMotion) drops.push({ g, y: g.position.y, t: 0 });
     });
+    if (cell) G.add(cellSolid(cell.shape, y0));
+    pose();
     const top = seq[n - 1];
     markers = [];
-    if (n < 10 && !glass) ["A", "B", "C"].filter(L => L !== top).forEach(L => {
+    if (n < 10 && !faint) (layer === "sq" ? ["A", "B"] : ["A", "B", "C"]).filter(L => L !== top).forEach(L => {
       const m = new THREE.MeshBasicMaterial({ color: lin(tok(COL[L])) });
       const g = new THREE.Group();
       sites(L, RMAX - 0.6).forEach(([u, w]) => { const d = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.03, 20), m); d.position.set(u, 0, w); g.add(d); });
-      g.position.y = y0 + (n - 1) * H + 0.5; v.root.add(g); markers.push(g); g.visible = !topView;
+      g.position.y = y0 + (n - 1) * gap() + (layer === "sq" ? 0.4 : 0.5); G.add(g); markers.push(g); g.visible = !topView;
       if (drops.length) { g.visible = false; drops[0].markers = (drops[0].markers || []).concat(g); }
     });
     v.refit();
     drops.forEach(d => { d.g.position.y += 3; });  // start the new layer above the stack, after measuring
     ui(); v.dirty = true;
   }
+  /* faded atoms: half-clear for See-through, nearly gone around a cell, almost invisible once the cube is upright */
+  function dimOpacity() { return cell ? 0.1 - 0.07 * ease(Math.max(0, tilt.t)) : 0.5; }
+  /* place the stack for tilt fraction t: turn part of the way about the cube centre, and slide that centre to the middle */
+  function pose() {
+    if (!G) return;
+    if (!cell || !cell.q || tilt.t <= 0) { G.quaternion.identity(); G.position.set(0, 0, 0); return; }
+    const t = ease(tilt.t);
+    G.quaternion.identity().slerp(cell.q, t);
+    G.position.copy(cell.c).multiplyScalar(1 - t).sub(cell.c.clone().applyQuaternion(G.quaternion));
+  }
   v.onFrame = () => {
+    if (tilt.t !== tilt.to) {
+      tilt.t = reduceMotion ? tilt.to : tilt.to > tilt.t ? Math.min(tilt.to, tilt.t + frameDt / 1.2) : Math.max(tilt.to, tilt.t - frameDt / 1.2);
+      pose(); dimMats.forEach(m => { m.opacity = dimOpacity(); });
+      if (tilt.t === tilt.to) { v.refit(); ui(); }
+      if (!drops.length) return true;
+    }
     if (!drops.length) return false;
     drops.forEach(d => {
       d.t = Math.min(1, d.t + frameDt / 0.55);
@@ -2254,30 +2404,55 @@ function clipPlanesFrom(v, defs) {
     return true;
   };
   function ui() {
-    const top = seq[seq.length - 1];
-    $$("[data-v]", $("#stackAdd")).forEach(b => { b.disabled = b.dataset.v === top || seq.length >= 10; b.title = b.dataset.v === top ? "Atoms cannot sit directly on top of atoms" : ""; });
+    const top = seq[seq.length - 1], sq = layer === "sq";
+    $$("[data-v]", $("#stackAdd")).forEach(b => {
+      b.hidden = sq && b.dataset.v === "C";
+      b.disabled = b.dataset.v === top || seq.length >= 10 || (sq && b.dataset.v === "C");
+      b.title = b.dataset.v === top ? "Atoms cannot sit directly on top of atoms" : "";
+      if (b.dataset.v === "B") b.lastChild.textContent = sq ? "B hollows" : "B dips";
+    });
+    setPressed($("#stackLayer"), layer);
+    $("#stackDesc").textContent = DESC[layer];
+    $("#stackH").textContent = sq ? "Stack square layers" : "Stack close-packed layers";
     $("#stackUndo").disabled = seq.length <= 1;
     const box = $("#stackSeq"); box.innerHTML = "";
     seq.forEach(L => { const b = document.createElement("b"); b.textContent = L; b.style.background = tok(COL[L]); box.appendChild(b); });
+    const K = kind();
     let txt;
-    if (seq.length < 3) txt = "Add at least three layers to tell which crystal this is.";
-    else {
-      const env = [];
-      for (let i = 1; i < seq.length - 1; i++) env.push(seq[i - 1] === seq[i + 1] ? "h" : "c");
-      if (env.every(e => e === "h")) txt = "ABAB… repeats every 2 layers: hexagonal close-packed (HCP).";
-      else if (env.every(e => e === "c")) txt = "ABCABC… repeats every 3 layers: face-centred cubic (FCC).";
-      else {
-        const bad = env.map((e, i) => e === "h" ? i + 2 : 0).filter(Boolean);
-        const mostlyC = env.filter(e => e === "c").length >= env.length / 2;
-        txt = mostlyC ? "Mostly FCC, but layer" + (bad.length > 1 ? "s " : " ") + bad.join(" and ") + " (counting from the bottom)" + (bad.length > 1 ? " break" : " breaks") + " the ABC pattern: a stacking fault." : "Mixed stacking: neither pure HCP nor pure FCC.";
-      }
-    }
+    if (!K) txt = "Add at least three layers to tell which crystal this is.";
+    else if (K === "bcc") txt = "Square layers, each in the hollows of the one below, repeat every 2 layers: body-centred cubic (BCC). These layers are not close-packed, so BCC fills 68% of space, not 74%.";
+    else if (K === "hcp") txt = "ABAB… repeats every 2 layers: hexagonal close-packed (HCP).";
+    else if (K === "fcc") txt = "ABCABC… repeats every 3 layers: face-centred cubic (FCC).";
+    else if (K === "fault") {
+      const bad = [];
+      for (let i = 1; i < seq.length - 1; i++) if (seq[i - 1] === seq[i + 1]) bad.push(i + 1);
+      txt = "Mostly FCC, but layer" + (bad.length > 1 ? "s " : " ") + bad.join(" and ") + " (counting from the bottom)" + (bad.length > 1 ? " break" : " breaks") + " the ABC pattern: a stacking fault.";
+    } else txt = "Mixed stacking: neither pure HCP nor pure FCC.";
     $("#stackVerdict").textContent = txt;
+    let note = "";
+    if (cellOn) {
+      if (cell) {
+        const L = i => seq[cell.k + i];
+        if (cell.kind === "hcp") note = "17 atoms make one HCP cell: a hexagon of 7 in layer " + L(0) + ", 3 in layer " + L(1) + " between them, and 7 more in layer " + L(2) + ". The cell is exactly one A B A repeat tall. The faded atoms are copies of this cell placed side by side.";
+        else if (cell.kind === "fcc" && upright) note = "The same 14 atoms, turned so the cube sits flat: 8 corners and 1 atom in the middle of each of the 6 faces. The close-packed layers you stacked now run slantwise across the cube, from one corner towards the opposite corner.";
+        else if (cell.kind === "fcc") note = "14 atoms make one FCC cube, standing on one corner. Its long diagonal runs straight up through layers " + L(0) + ", " + L(1) + ", " + L(2) + " and " + L(3) + ": 1 + 6 + 6 + 1 atoms. Each close-packed layer is a slanted slice through the cube. Stand the cube upright to see it the usual way.";
+        else note = "9 atoms make one BCC cube: 4 corners in layer " + L(0) + ", 1 atom in the centre from layer " + L(1) + ", and 4 corners in layer " + L(2) + ". The centre atom touches all 8 corners; the corners do not touch each other.";
+      } else if (!K || (K === "fcc" && seq.length < 4)) note = "Stack more layers first: an HCP or BCC cell needs 3 layers, an FCC cell needs 4.";
+      else note = "This stack has no single repeating cell. Build pure ABAB… or ABCABC… (or the square-layer stack) to find one.";
+    }
+    $("#stackUpright").hidden = !(cell && cell.kind === "fcc");
+    $("#stackUpright").setAttribute("aria-pressed", upright ? "true" : "false");
+    $("#stackCellNote").textContent = note;
+    $("#stackCellNote").hidden = !note;
   }
-  $$("[data-v]", $("#stackAdd")).forEach(b => b.addEventListener("click", () => { if (seq.length < 10 && b.dataset.v !== seq[seq.length - 1]) { seq.push(b.dataset.v); build(true); } }));
-  $("#stackUndo").addEventListener("click", () => { if (seq.length > 1) { seq.pop(); build(); } });
-  $("#stackClear").addEventListener("click", () => { seq = ["A"]; build(); });
-  $$("[data-preset]").forEach(b => b.addEventListener("click", () => { seq = b.dataset.preset.split(""); build(); }));
+  const flat = () => { upright = false; tilt = { t: 0, to: 0 }; aimed = null; };
+  $$("[data-v]", $("#stackAdd")).forEach(b => b.addEventListener("click", () => { if (seq.length < 10 && b.dataset.v !== seq[seq.length - 1]) { flat(); seq.push(b.dataset.v); build(true); } }));
+  $("#stackUndo").addEventListener("click", () => { if (seq.length > 1) { flat(); seq.pop(); build(); } });
+  $("#stackClear").addEventListener("click", () => { flat(); seq = ["A"]; build(); });
+  pressGroup($("#stackLayer"), L => { if (L !== layer) { flat(); layer = L; seq = ["A"]; build(); } });
+  $$("[data-preset]").forEach(b => b.addEventListener("click", () => {
+    const p = b.dataset.preset.split(":"); flat(); layer = p.length > 1 ? p[0] : "cp"; seq = p[p.length - 1].split(""); build();
+  }));
   // straight down, a nearly parallel view (narrow field of view from far away), so every vertical channel lines up
   const setFov = f => { v.camera.fov = f; v.camera.updateProjectionMatrix(); v.curD = null; v.dirty = true; };
   // in the top view the next-layer markers are hidden: they sit exactly over the open channels of HCP
@@ -2286,23 +2461,38 @@ function clipPlanesFrom(v, defs) {
   $("#stackSide").addEventListener("click", () => { view(false); v.rotX = 0.1; v.rotY = 0; v.dirty = true; });
   $("#stackTop").addEventListener("click", () => { view(true); v.rotX = Math.PI / 2; v.rotY = 0; v.dirty = true; });
   toggle($("#stackGlass"), on => { glass = on; build(); });
+  // small atoms make the cell's corners and centres easy to see; switch them off to see real-size, touching atoms
+  toggle($("#stackCell"), on => { cellOn = on; small = on; $("#stackSmall").setAttribute("aria-pressed", on ? "true" : "false"); build(); });
+  toggle($("#stackSmall"), on => { small = on; build(); });
+  toggle($("#stackUpright"), on => {
+    if (!(cell && cell.kind === "fcc")) return;
+    upright = on; tilt.to = on ? 1 : 0; aimed = null; aim(); ui(); v.dirty = true;
+  });
   toggle($("#stackSpin"), on => { v.spin = on; });
   let frameDt = 1 / 60;
+  window.__stack = { root: () => v.root, state: () => tabs.stack.state(), busy: () => drops.length > 0 || tilt.t !== tilt.to };   // test hook
   tabs.stack = { shown: () => { v.size(); v.dirty = true; }, tick: dt => { frameDt = dt; v.render(); }, theme: () => build(), resize: () => v.size(),
-    state: () => ({ seq: seq.join(""), verdict: $("#stackVerdict").textContent, glass }) };
+    state: () => ({ seq: seq.join(""), verdict: $("#stackVerdict").textContent, glass, layer, cell: cell ? cell.kind : null, cellAtoms: cell ? cell.atoms.length : 0 }) };
+  const CP = ["click", '#stackLayer [data-v="cp"]'];
   mountGuide("stack", [
     { q: "Build A, B, then put the third layer back over A. Keep going. What do you get?",
       a: "ABAB… is hexagonal close-packed (HCP): Mg, Ti, Zn.",
-      setup: [["off", "#stackGlass"], ["click", "#stackClear"], ["click", '#stackAdd [data-v="B"]'], () => v.reset()] },
+      setup: [["off", "#stackGlass"], ["off", "#stackCell"], CP, ["click", "#stackClear"], ["click", '#stackAdd [data-v="B"]'], () => v.reset()] },
     { q: "Start again from A, B and put the third layer in the C dips instead. What do you get?",
       a: "ABCABC… is face-centred cubic (FCC): Al, Cu, Ni. The FCC cube's densest plane is exactly this layer.",
-      setup: [["off", "#stackGlass"], ["click", "#stackClear"], ["click", '#stackAdd [data-v="B"]'], () => v.reset()] },
+      setup: [["off", "#stackGlass"], ["off", "#stackCell"], CP, ["click", "#stackClear"], ["click", '#stackAdd [data-v="B"]'], () => v.reset()] },
     { q: "Look at the stacking-fault example from the side. Can you see where it went wrong?",
       a: "ABCAB|ABC: the C layer that should follow AB is missing, so for two layers (the 5th and 6th) the stack reads ABAB, a thin slice of HCP inside FCC. That planar defect is a stacking fault.",
-      setup: [["off", "#stackGlass"], ["click", '[data-preset="ABCABABC"]'], ["click", "#stackSide"]] },
+      setup: [["off", "#stackGlass"], ["off", "#stackCell"], ["click", '[data-preset="ABCABABC"]'], ["click", "#stackSide"]] },
     { q: "Look straight down an ABCABC stack, then an ABABAB stack. In which one can you see through gaps between the atoms?",
       a: "In ABAB (HCP) the C positions are never filled, so in this hard-sphere picture narrow lines of sight (about 15% of an atom's width) run straight down through the stack. In ABCABC (FCC) the A, B and C layers cover every position. These are not pores: ideal HCP fills space exactly as fully as FCC (0.74); the gaps are only arranged differently.",
-      setup: [["click", '[data-preset="ABCABC"]'], ["off", "#stackGlass"], ["click", "#stackTop"]] }
+      setup: [["click", '[data-preset="ABCABC"]'], ["off", "#stackGlass"], ["off", "#stackCell"], ["click", "#stackTop"]] },
+    { q: "Show one unit cell of the ABCABC stack. Where is the FCC cube, and which layers does it use?",
+      a: "The cube stands on one corner. Its long diagonal runs straight up from an atom in one layer to the atom directly above it three layers higher, so it takes 1 + 6 + 6 + 1 = 14 atoms from four layers in a row. The close-packed layers are slanted slices through the cube, which is why the stack and the cube in the Unit cells tab look so different.",
+      setup: [["off", "#stackGlass"], ["click", '[data-preset="ABCABC"]'], ["on", "#stackCell"], () => v.reset()] },
+    { q: "Can any order of close-packed layers make BCC? Then try square layers and show one unit cell.",
+      a: "No. Close-packed layers only ever give FCC, HCP or a mix of the two. BCC is built from square layers whose atoms do not quite touch: each new layer sinks into the hollows between four atoms, A B A B. Its cell is 9 atoms (8 corners and 1 centre), and it fills 68% of space, less than the 74% of FCC and HCP.",
+      setup: [["off", "#stackGlass"], ["click", '[data-preset="sq:ABABAB"]'], ["on", "#stackCell"], () => v.reset()] }
   ]);
   build();
 })();
@@ -4612,29 +4802,39 @@ const LESSONS = {
     ]
   },
   stack: {
-    title: "Stacking close-packed layers",
-    obj: "Build FCC and HCP from the same layer of atoms, explain what makes them different, and recognise a stacking fault.",
+    title: "Stacking layers of atoms",
+    obj: "Build FCC and HCP from the same layer of atoms, find the unit cell hidden in each stack, see why BCC needs a different layer, and recognise a stacking fault.",
     steps: [
       { k: "watch", h: "Layers settle into dips",
         p: "<p>In one close-packed layer each atom touches six others: the densest way to pack equal spheres on a flat surface. The next layer settles into the dips. There are two sets of dips, B and C, and only one set can be used at a time.</p>",
-        setup: [["off", "#stackGlass"], ["click", "#stackClear"], ["click", "#stackSide"]], play: [["wait", 700], ["click", '#stackAdd [data-v="B"]'], ["wait", 1100], ["click", '#stackAdd [data-v="C"]']] },
+        setup: [["off", "#stackGlass"], ["off", "#stackCell"], ["click", '#stackLayer [data-v="cp"]'], ["click", "#stackClear"], ["click", "#stackSide"]], play: [["wait", 700], ["click", '#stackAdd [data-v="B"]'], ["wait", 1100], ["click", '#stackAdd [data-v="C"]']] },
       { k: "try", h: "Build hexagonal close-packed",
         p: "<p>Put every new layer back over the one two below it.</p>",
-        show: ["#stackAdd < .group", "#stackSeq < .readout"], setup: [["click", "#stackClear"]],
+        show: ["#stackAdd < .group", "#stackSeq < .readout"], setup: [["off", "#stackCell"], ["click", '#stackLayer [data-v="cp"]'], ["click", "#stackClear"]],
         goals: [{ t: "Stack at least four layers that repeat every two: A B A B", ok: s => s.seq.length >= 4 && /hexagonal close-packed/.test(s.verdict) }],
         why: "ABAB… is hexagonal close-packed (HCP): magnesium, titanium, zinc." },
       { k: "try", h: "Build face-centred cubic",
         p: "<p>This time use all three positions in turn.</p>",
-        show: ["#stackAdd < .group", "#stackSeq < .readout"], setup: [["click", "#stackClear"]],
+        show: ["#stackAdd < .group", "#stackSeq < .readout"], setup: [["off", "#stackCell"], ["click", '#stackLayer [data-v="cp"]'], ["click", "#stackClear"]],
         goals: [{ t: "Stack at least four layers that repeat every three: A B C A", ok: s => s.seq.length >= 4 && /face-centred cubic/.test(s.verdict) }],
         why: "ABCABC… is face-centred cubic (FCC): aluminium, copper, nickel. Viewed along the cube's diagonal, FCC's densest planes are exactly these layers. Same layer, same density; only the order differs." },
+      { k: "try", h: "Find the unit cell in the stack",
+        p: "<p>A big crystal is one small box of atoms, the <b>unit cell</b>, repeated side by side and on top. Switch on <b>Show one unit cell</b>: one cell stays solid and every other atom fades.</p>",
+        show: ["#stackCell < .group", '[data-preset="ABABAB"] < .group'], setup: [["off", "#stackGlass"], ["off", "#stackCell"], ["click", '[data-preset="ABABAB"]'], ["click", "#stackSide"]],
+        goals: [{ t: "Show the cell of an ABAB stack", ok: (s, m) => saw(m, "h", s.cell === "hcp") }, { t: "Show the cell of an ABCABC stack", ok: (s, m) => saw(m, "f", s.cell === "fcc") }],
+        why: "ABAB gives the hexagonal HCP cell: 7 atoms in an A layer, 3 in the B layer, 7 in the next A layer. ABCABC gives the FCC cube standing on one corner: its long diagonal climbs through A, B, C and back to A. The stack and the Unit cells tab show the same crystal from two directions." },
       { k: "predict", h: "Look straight down",
         p: "<p>Look straight down a tall stack of layers.</p>",
-        q: { opts: ["You can see gaps all the way through ABAB (HCP)", "You can see gaps all the way through ABCABC (FCC)", "Neither has gaps"], ans: 0, then: [["click", '[data-preset="ABABAB"]'], ["off", "#stackGlass"], ["click", "#stackTop"]] },
+        q: { opts: ["You can see gaps all the way through ABAB (HCP)", "You can see gaps all the way through ABCABC (FCC)", "Neither has gaps"], ans: 0, then: [["click", '[data-preset="ABABAB"]'], ["off", "#stackGlass"], ["off", "#stackCell"], ["click", "#stackTop"]] },
         why: "In HCP the C positions are never filled, so in this hard-sphere picture narrow lines of sight (the small light dots, about 15% of an atom's width) run straight down through the stack. In FCC the A, B and C layers between them cover every position. They are not pores: ideal HCP and FCC both fill 74% of space; only the arrangement of the gaps differs." },
+      { k: "try", h: "BCC needs a different layer",
+        p: "<p>No order of close-packed layers ever makes BCC. Switch to <b>Square</b> layers. Each atom has four neighbours, slightly apart, so the next layer sinks deeper, into the hollow between four atoms.</p>",
+        show: ["#stackLayer < .group", "#stackAdd < .group", "#stackCell < .group"], setup: [["off", "#stackGlass"], ["off", "#stackCell"], ["click", '#stackLayer [data-v="cp"]'], ["click", "#stackClear"], ["click", "#stackSide"]],
+        goals: [{ t: "Stack at least three square layers", ok: s => s.layer === "sq" && s.seq.length >= 3 }, { t: "Show its unit cell", ok: s => s.cell === "bcc" }],
+        why: "A B A B square layers make body-centred cubic (BCC): iron at room temperature, chromium, tungsten. The cell is 8 corner atoms and 1 in the centre; the centre atom touches all 8 corners. The layers are not close-packed, so BCC fills 68% of space instead of 74%." },
       { k: "try", h: "Make a mistake on purpose",
         p: "<p>Real crystals sometimes get the order wrong.</p>",
-        show: ["#stackAdd < .group", "#stackSeq < .readout"], setup: [["off", "#stackGlass"], ["click", "#stackClear"], ["click", "#stackSide"]],
+        show: ["#stackAdd < .group", "#stackSeq < .readout"], setup: [["off", "#stackGlass"], ["off", "#stackCell"], ["click", '#stackLayer [data-v="cp"]'], ["click", "#stackClear"], ["click", "#stackSide"]],
         goals: [{ t: "Build at least six layers of mostly ABC stacking with one layer out of order", ok: s => s.seq.length >= 6 && /stacking fault/.test(s.verdict) }],
         why: "That is a stacking fault: a planar defect where a thin slice of HCP sits inside FCC. Faults form as FCC metals grow and as they deform, and they change how easily the metal deforms." }
     ]

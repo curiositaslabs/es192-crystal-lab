@@ -25,7 +25,7 @@ const log = []; const ok = (c, m) => log.push((c ? "PASS " : "FAIL ") + m);
   const answer = async v => { await page.$eval(".lsn-blank input", (e, x) => { e.value = x; }, String(v)); await page.click(".lsn-check"); await sleep(200); };
 
   // every step of every chapter renders and Next walks through them
-  const counts = { bonds: 8, cells: 7, stack: 5, raft: 6, disl: 9, phase: 9 };
+  const counts = { bonds: 8, cells: 7, stack: 7, raft: 6, disl: 9, phase: 9 };
   for (const [tab, n] of Object.entries(counts)) {
     await go(tab, 1, 700);
     let seen = 0, bad = [];

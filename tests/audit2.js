@@ -18,7 +18,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
   await page.goto(url, { waitUntil: "networkidle0" }); await sleep(800);
   const tabs = ["bonds", "cells", "stack", "raft", "disl", "phase"];
-  const n = { bonds: 4, cells: 5, stack: 4, raft: 4, disl: 4 };
+  const n = { bonds: 4, cells: 5, stack: 6, raft: 4, disl: 4 };
   for (const t of tabs) {
     if (!n[t]) continue;
     for (let k = 1; k <= n[t]; k++) {
