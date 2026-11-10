@@ -3,7 +3,7 @@
   "private": true,
   "description": "Browser tests for ES 192 Crystal Lab (headless Chrome via puppeteer-core).",
   "scripts": {
-    "test": "node learn-test.js ../index.html out && node ui-test.js ../index.html && node phase-test.js ../index.html out && node nowebgl.js ../index.html && node test.js ../index.html out && node stack-cell-check.js ../index.html",
+    "test": "node learn-test.js ../index.html out && node ui-test.js ../index.html && node phase-test.js ../index.html out && node nowebgl.js ../index.html && node test.js ../index.html out && node stack-cell-check.js ../index.html && node diff-test.js ../index.html",
     "audit": "node audit2.js ../index.html out"
   },
   "dependencies": {
