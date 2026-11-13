@@ -24,18 +24,22 @@ const log = []; const ok = (c, m) => log.push((c ? "PASS " : "FAIL ") + m);
   await page.keyboard.press("1"); await sleep(150); await page.keyboard.press("7"); await sleep(300);
   ok(await page.$eval('nav.tabs [aria-selected="true"]', b => b.dataset.tab) === "diff", "key 7 opens Diffusion");
 
-  // carburizing: Callister Design Example 5.1 numbers (exact erf: 0.4769, so ~1% shorter than the book's 0.4747)
+  // carburizing: Callister Design Example 5.1 numbers with his z = 0.4747, as on the 11A slide (29.4 / 15.8 / 8.9 / 5.3 h)
   await val("#cbT", 1050); await val("#cbX", 0.75); await sleep(100);
   let s = await st();
-  ok(Math.abs(s.need - 5.21) < 0.05, `1050 °C, 0.75 mm: ${s.need.toFixed(2)} h (Callister 5.3 h with 0.4747)`);
+  ok(Math.abs(s.need - 5.26) < 0.03, `1050 °C, 0.75 mm: ${s.need.toFixed(2)} h (Callister 5.3 h)`);
   await val("#cbT", 950); await sleep(100); s = await st();
-  ok(Math.abs(s.need - 15.6) < 0.15, `950 °C: ${s.need.toFixed(2)} h`);
+  ok(Math.abs(s.need - 15.8) < 0.05, `950 °C: ${s.need.toFixed(2)} h (11A slide 15.8 h)`);
+  await val("#cbT", 900); await sleep(50); s = await st(); ok(Math.abs(s.need - 29.4) < 0.05, `900 °C: ${s.need.toFixed(2)} h (11A slide 29.4 h)`);
+  await val("#cbT", 950); await sleep(50);
   await val("#cbTime", 4); await sleep(100); s = await st();
-  ok(Math.abs(s.depth - 0.379) < 0.005, `950 °C, 4 h: depth ${s.depth.toFixed(3)} mm`);
+  ok(Math.abs(s.depth - 0.377) < 0.005, `950 °C, 4 h: depth ${s.depth.toFixed(3)} mm`);
   await val("#cbTime", 16); await sleep(100); s = await st();
-  ok(Math.abs(s.depth / 0.379 - 2) < 0.02, `16 h is twice as deep as 4 h (${s.depth.toFixed(3)} mm)`);
+  ok(Math.abs(s.depth / 0.377 - 2) < 0.02, `16 h is twice as deep as 4 h (${s.depth.toFixed(3)} mm)`);
   await page.click("#cbReset"); await page.click("#cbRun"); await sleep(4800); s = await st();
   ok(!s.running && s.hits.some(h => h.T === 950) && Math.abs(s.t - s.need) < 1e-6, `run stops when deep enough (t = ${s.t.toFixed(2)} h)`);
+  const btn = await page.$eval("#cbRun", b => b.textContent); ok(btn === "Run again", `button after stopping reads "${btn}"`);
+  await page.click("#cbReset"); await sleep(50); s = await st(); ok(s.hits.length === 0, "Back to t = 0 forgets earlier runs");
   await shot("diff-carb");
   await page.click("#cbFollow"); await sleep(1500); s = await st(); ok(s.follow, "follow one atom switches on");
 
@@ -49,6 +53,7 @@ const log = []; const ok = (c, m) => log.push((c ? "PASS " : "FAIL ") + m);
   let [fine] = await runAt(3, -0.5);
   ok(fine.grains > 300, `Ṅ 1000, Ġ 0.32: ${fine.grains} grains (fine)`);
   ok(Math.abs(fine.th / fine.thA - 1) < 0.15, `fine: t½ sim ${fine.th.toFixed(1)} s vs Avrami ${fine.thA.toFixed(1)} s`);
+  await page.click("#ngClear"); await sleep(50); s = await st(); ok(s.runs.length === 0, "Clear old curves forgets every earlier run");
   let [coarse] = await runAt(0.5, 1);
   ok(coarse.grains > 0 && coarse.grains < 20, `Ṅ 3, Ġ 10: ${coarse.grains} grains (coarse)`);
   const t0 = Date.now(); await val("#ngN", 3); await val("#ngG", -0.5); await sleep(160); const ms = Date.now() - t0;
@@ -73,6 +78,13 @@ const log = []; const ok = (c, m) => log.push((c ? "PASS " : "FAIL ") + m);
   // phone width
   await page.setViewport({ width: 390, height: 844 }); await page.evaluate(() => { location.hash = "diff:1"; }); await sleep(1500); await shot("diff-phone");
 
+  // Learn: step 1 demonstrates a 950 °C run; step 2 asks for that run, so it must not start already done
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.goto(url0 + (url0.includes("?") ? "&" : "?") + "mode=learn#learn:diff:1", { waitUntil: "networkidle0" }); await sleep(6000);
+  await page.click("#lsnNext"); await sleep(1000);
+  ok(await page.$eval(".lsn-goals li", l => !l.classList.contains("ok")), "Learn step 2 is not done before the student runs the furnace");
+  await page.click("#cbRun"); await sleep(5000);
+  ok(await page.$eval(".lsn-goals li", l => l.classList.contains("ok")), "Learn step 2 is done after the run");
   ok(errors.length === 0, "no page errors" + (errors.length ? ": " + errors.slice(0, 3).join(" | ") : ""));
   console.log(log.join("\n"));
   console.log(log.filter(l => l.startsWith("FAIL")).length ? "SOME FAILED" : "ALL PASS (" + log.length + ")");

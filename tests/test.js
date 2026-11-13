@@ -163,10 +163,10 @@ const ok = (cond, msg) => { log.push((cond ? "PASS " : "FAIL ") + msg); };
   await click("#t-disl"); await sleep(300);
   await shot("disl-start");
   await click("#dislBurgers");
-  for (let i = 0; i < 14; i++) { await click("#dislStep"); await sleep(450); }
+  for (let i = 0; i < 10; i++) { await click("#dislStep"); await sleep(450); }
   const bv = await text("#dislBroken");
   await shot("disl-burgers-inside");
-  log.push("INFO disl: after 14 steps, bonds breaking " + bv + " status " + await text("#dislStatus"));
+  log.push("INFO disl: after 10 steps, bonds breaking " + bv + " status " + await text("#dislStatus"));
   await click("#dislReset"); await click("#dislBurgers");
   await click("#dislGo"); await sleep(1500);
   ok(/Gliding/.test(await text("#dislStatus")), "disl: glides at stress 30 -> " + await text("#dislStatus"));

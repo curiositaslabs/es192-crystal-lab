@@ -328,6 +328,7 @@ body.learn .pdtop { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); heig
 }
 #lesson { grid-column: 2; grid-row: 1; position: sticky; top: calc(var(--barH) + 14px); max-height: calc(100vh - var(--barH) - 28px); overflow-y: auto; scrollbar-width: thin;
   font-family: var(--serif); color: var(--ink); padding: 2px 4px 20px 24px; border-left: 1px solid var(--rule); }
+.lsn-grip { all: unset; display: none; }
 .lsn-chap { font: 600 11px/1.3 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
 .lsn-title { font: 650 27px/1.12 var(--serif); letter-spacing: -0.012em; margin: 8px 0 8px; font-family: var(--serif); }
 .lsn-obj { font: italic 400 15.5px/1.45 var(--serif); color: var(--muted); margin: 0 0 14px; }
@@ -398,6 +399,12 @@ body.learn .pdtop { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); heig
   #lesson { position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 25; max-height: 46vh; background: var(--paper); border-left: 0; border-top: 1px solid var(--rule);
     box-shadow: 0 -10px 30px rgba(16, 24, 40, .14); padding: 12px 16px 14px; border-radius: 14px 14px 0 0; }
   body.learn main.wrap { padding-bottom: 50vh; }
+  .lsn-grip { display: block; width: 100%; height: 26px; margin: -10px 0 2px; cursor: pointer; position: relative; }
+  .lsn-grip::before { content: ""; position: absolute; left: 50%; top: 9px; width: 44px; height: 5px; margin-left: -22px; border-radius: 3px; background: var(--muted); opacity: .55; }
+  .lsn-grip:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+  #lesson.min .lsn-chap, #lesson.min .lsn-rail, #lesson.min .lsn-body, #lesson.min .lsn-task, #lesson.min .lsn-why, #lesson.min .lsn-nav { display: none; }
+  #lesson.min .lsn-step > h3 { font-size: 18px; margin: 6px 0 2px; }
+  #lesson.min .lsn-ctl { margin: 8px 0 0; padding: 10px; }
   #lesson .lsn-obj, #lesson .lsn-title { display: none; }
   #lesson .lsn-rail { margin-bottom: 12px; }
   #lesson .lsn-body { font-size: 16px; }
@@ -532,6 +539,7 @@ body.present #lesson .lsn-step h3 { font-size: 25px; }
         <div class="chips">
           <button class="chip tog" id="cellReps" aria-pressed="false">2 × 2 × 2 block</button>
           <button class="chip tog" id="cellPlane" aria-pressed="false">Show densest plane</button>
+          <button class="chip tog" id="cellTouch" aria-pressed="false">Show the atoms that touch</button>
           <button class="chip tog" id="cellSpin" aria-pressed="false">Spin</button>
         </div>
         <div class="group" id="metalRow">
@@ -750,7 +758,7 @@ body.present #lesson .lsn-step h3 { font-size: 25px; }
             <button class="chip tog" id="dislBurgers" aria-pressed="false">Burgers circuit</button>
           </div>
         </div>
-        <p class="cap">Stress is on a schematic 0–100 scale; about 95 is the ideal strength, the stress needed to slide a whole plane of a perfect crystal at once. The real gap is far larger than 8 versus 95: a pure copper crystal starts to slip at about 1 MPa, thousands of times below its ideal shear strength of several GPa. The Burgers circuit takes as many atom steps left as right, and as many down as up; if it does not close, the gap is the Burgers vector <b>b</b>. With the grain boundary on, the second grain (B) has its rows of atoms turned by 35°, as in Callister Fig. 7.14, so its slip plane points a different way from grain A's.</p>
+        <p class="cap">The crystal starts with one dislocation already inside it. Real crystals always contain dislocations: between a hundred thousand and a million dislocation lines cross every square millimetre of an annealed metal (Callister §4.5). Stress is on a schematic 0–100 scale; about 95 is the ideal strength, the stress needed to slide a whole plane of a perfect crystal at once. The real gap is far larger than 8 versus 95: a pure copper crystal starts to slip at about 1 MPa, thousands of times below its ideal shear strength of several GPa. The Burgers circuit takes as many atom steps left as right, and as many down as up; if it does not close, the gap is the Burgers vector <b>b</b>. With the grain boundary on, the second grain (B) has its rows of atoms turned by 35°, as in Callister Fig. 7.14, so its slip plane points a different way from grain A's.</p>
         </div>
         <div class="vpane" data-view="types" hidden>
           <div class="group">
@@ -920,11 +928,11 @@ body.present #lesson .lsn-step h3 { font-size: 25px; }
             <input type="range" id="ngDT" min="20" max="400" step="5" value="150">
           </div>
           <div class="range">
-            <label for="ngN">Nucleation rate Ṅ (new crystals per mm² per s)</label><output id="ngNOut">–</output>
+            <label for="ngN">Nucleation rate, Ṅ</label><output id="ngNOut">–</output>
             <input type="range" id="ngN" min="0" max="3" step="0.05" value="2">
           </div>
           <div class="range">
-            <label for="ngG">Growth rate Ġ (how fast each crystal's edge moves)</label><output id="ngGOut">–</output>
+            <label for="ngG">Growth rate, Ġ</label><output id="ngGOut">–</output>
             <input type="range" id="ngG" min="-0.5" max="1" step="0.05" value="0.3">
           </div>
           <div class="chips">
@@ -932,12 +940,20 @@ body.present #lesson .lsn-step h3 { font-size: 25px; }
             <button class="chip" id="ngNew">New sample</button>
             <button class="chip" id="ngClear">Clear old curves</button>
           </div>
-          <p class="cap" id="ngCap">The temperature sets both rates. Just below the melting point atoms move easily, so crystals grow fast, but new crystals hardly ever start. Far below it, crystals start easily but atoms move slowly.</p>
+          <div class="group">
+            <h3>Show the sample as</h3>
+            <div class="seg g2 sm" id="ngLook">
+              <button data-v="micro" aria-pressed="true">Micrograph</button>
+              <button data-v="colour">Colour each grain</button>
+            </div>
+          </div>
+          <p class="cap" id="ngCap">The temperature sets both rates: Ṅ, how many new crystals start each second in each mm² of liquid, and Ġ, how fast each crystal's edge moves. Just below the melting point atoms move easily, so crystals grow fast, but new crystals hardly ever start. Far below it, crystals start easily but atoms move slowly.</p>
         </div>
         <details class="about"><summary>About this model</summary><div>
-          <p class="cap"><b>Carbon into steel.</b> The carbon profile is Callister's solution for diffusion into a thick piece with the surface held at a fixed concentration (Eq. 5.5): C(x, t) = C₀ + (C<sub>s</sub> − C₀)[1 − erf(x / 2√(Dt))], with C₀ = 0.20 and C<sub>s</sub> = 1.00 wt% C as in Design Example 5.1. D = D₀ exp(−Q<sub>d</sub>/RT) (Eq. 5.8) with carbon in austenite (γ-iron, FCC): D₀ = 2.3 × 10⁻⁵ m²/s and Q<sub>d</sub> = 148 kJ/mol (Table 5.2). The 0.60 wt% point sits at x = 2(0.4769)√(Dt). Callister's table interpolation gives 0.4747 instead of 0.4769, so his times are about 1% longer (5.3 h at 1050 °C; 5.2 h here). Temperatures stay above about 850 °C so the steel is austenite.</p>
+          <p class="cap"><b>Carbon into steel.</b> The carbon profile is Callister's solution for diffusion into a thick piece with the surface held at a fixed concentration (Eq. 5.5): C(x, t) = C₀ + (C<sub>s</sub> − C₀)[1 − erf(x / 2√(Dt))], with C₀ = 0.20 and C<sub>s</sub> = 1.00 wt% C as in Design Example 5.1. D = D₀ exp(−Q<sub>d</sub>/RT) (Eq. 5.8) with carbon in austenite (γ-iron, FCC): D₀ = 2.3 × 10⁻⁵ m²/s and Q<sub>d</sub> = 148 kJ/mol (Table 5.2). The 0.60 wt% point sits where erf(z) = 0.5. The lab uses Callister's value from Table 5.1, z = 0.4747 (Eq. 5.10), so x = 0.95√(Dt) and Dt = 6.24 × 10⁻⁷ m² for 0.75 mm, as in the lecture: 29.4, 15.8, 8.9 and 5.3 h at 900, 950, 1000 and 1050 °C. (The exact z is 0.4769, which shortens every time by about 1%. Callister's own table rounds R to 8.31 J/mol·K and so lists 15.9 h at 950 °C.) Temperatures stay above about 850 °C so the steel is austenite.</p>
           <p class="cap">The zoom is a cartoon of the same process: carbon atoms hop at random between the gaps in the iron. It is slowed down enormously (real carbon atoms hop about 10⁹ times a second at these temperatures, from D = Γλ²/6 with a jump of 0.25 nm) and drawn about 10 times denser than real, because 1.00 wt% C fills only about 5% of the gaps.</p>
           <p class="cap"><b>Nucleation and growth.</b> A liquid metal held at one temperature below its melting point T<sub>m</sub> (1000 °C here). Crystals start at random places in the remaining liquid at the nucleation rate Ṅ and every crystal's edge moves out at the growth rate Ġ until crystals meet. The picture is a 200 µm window into a larger area; when the grains are bigger than the window, they grow into it from outside. The dashed curve is the Avrami equation (Callister Eq. 10.17), y = 1 − exp(−kt<sup>n</sup>); for crystals growing in a flat layer with a steady nucleation rate, k = πṄĠ²/3 and n = 3. The rate is 1/t₀.₅ (Eq. 10.18).</p>
+          <p class="cap">"Micrograph" shows the window as a polished and etched section would look if the sample were quenched at that moment. Each grain etches to its own shade of grey, because the etch attacks each crystal orientation at a different rate. Grain boundaries etch faster still, so they show as dark grooves. The liquid that was left becomes the dark, finely mottled matrix. The texture, scratches and microscope shading are illustrative. "Colour each grain" makes the grains easier to count.</p>
           <p class="cap">With "Temperature", the rates follow the shapes Callister gives: Ṅ ∝ exp(−ΔG*/kT)·exp(−Q<sub>d</sub>/kT) with ΔG* ∝ 1/ΔT² (Eqs. 10.7 and 10.10), and Ġ ∝ exp(−Q/kT) (Eq. 10.16). The constants are chosen to show the behaviour of Fig. 10.8, not to describe a particular metal, so treat the numbers as illustrative.</p>
         </div></details>
       </aside>
@@ -1991,7 +2007,13 @@ function clipPlanesFrom(v, defs) {
   let v;
   try { if (!has3D) throw new Error("no three.js"); v = makeViewer($("#cellStage")); }
   catch (e) { $("#cellStage").textContent = "This 3D view needs WebGL, which this browser could not start. The other tabs still work."; return; }
-  let type = "fcc", mode = "hard", reps = 1, plane = false, metal = null, selected = null;
+  let type = "fcc", mode = "hard", reps = 1, plane = false, touch = false, metal = null, selected = null;
+  // the row of atoms that touch each other and so set the cell edge a (fractional positions; the middle index is depth, 1 = front)
+  const TOUCH = {
+    sc: { pts: [[0, 1, 0], [1, 1, 0]], txt: "The two red atoms touch along an edge of the cube. From centre to centre that is R + R = 2R, and the edge is a long, so a = 2R." },
+    bcc: { pts: [[0, 1, 0], [.5, .5, .5], [1, 0, 1]], txt: "The three red atoms touch in a row along the diagonal through the middle of the cube. From end to end, centre to centre, that is R + 2R + R = 4R. That diagonal is a√3 long, so 4R = a√3 and a = 4R/√3." },
+    fcc: { pts: [[0, 1, 0], [.5, 1, .5], [1, 1, 1]], txt: "The three red atoms touch in a row along the diagonal of a face. From end to end, centre to centre, that is R + 2R + R = 4R. The diagonal of a square of side a is a√2 long, so 4R = a√2 and a = 2R√2." }
+  };
   const S3 = Math.sqrt(3), S2 = Math.sqrt(2), NA = 6.022e23;
   const tipEl = $("#cellTip");
   const INFO = {
@@ -2077,6 +2099,8 @@ function clipPlanesFrom(v, defs) {
   function build() {
     v.clear(); atomMeshes = []; selected = null; tipEl.hidden = true; v.root.visible = true;
     combos.add(type + ":" + mode);
+    const canTouch = !!TOUCH[type] && mode !== "nbr" && reps === 1;
+    $("#cellTouch").hidden = !canTouch;
     if (mode === "nbr") return buildNeighbours();
     if (type === "hcp") return buildHCP();
     const a = reps === 1 ? 2.6 : 1.7;
@@ -2098,6 +2122,12 @@ function clipPlanesFrom(v, defs) {
       if (type === "bcc") { test = p => Math.abs(p.f[0] - p.f[1]) < 1e-6; sheet([[0, 0, 0], [R, R, 0], [R, R, R], [0, 0, R]].map(P)); }
       if (type === "sc") { test = p => Math.abs(p.f[0]) < 1e-6; sheet([[0, 0, 0], [0, R, 0], [0, R, R], [0, 0, R]].map(P)); }
     }
+    let row = null;
+    if (touch && canTouch) {
+      const T = TOUCH[type];
+      test = p => T.pts.some(q => q.every((c, k) => Math.abs(c - p.f[k]) < 1e-6));
+      row = T.pts.map(f => new THREE.Vector3(f[0] * a - off, f[2] * a - off, f[1] * a - off));
+    }
     const rh = RHARD[type];
     const radius = mode === "ball" ? (p => (type === "nacl" ? (p.role ? 0.13 : 0.09) : 0.1) * a) : (p => rh[p.role] * a);
     const clip = mode === "cut" ? clipPlanesFrom(v, [[1, 0, 0, off], [-1, 0, 0, off], [0, 1, 0, off], [0, -1, 0, off], [0, 0, 1, off], [0, 0, -1, off]]) : null;
@@ -2108,6 +2138,17 @@ function clipPlanesFrom(v, defs) {
     for (let ix = 0; ix < reps; ix++) for (let iy = 0; iy < reps; iy++) for (let iz = 0; iz < reps; iz++)
       segs.push(...boxEdges(new THREE.Vector3((ix + .5) * a - off, (iy + .5) * a - off, (iz + .5) * a - off), a / 2));
     if (mode !== "ball") tubes(v.root, segs, 0.0055 * a, tok("--ink"));   // ball and stick: only bonds are drawn
+    if (row) {
+      // drawn over the atoms: a line through the centres, a dot at each centre and a ring-coloured dot where two atoms touch
+      const over = c => new THREE.MeshBasicMaterial({ color: lin(c), depthTest: false, depthWrite: false, transparent: true });
+      const put = (geo, m, pos, order) => { const o = new THREE.Mesh(geo, m); o.position.copy(pos); o.renderOrder = order; o.userData.noFit = true; v.root.add(o); return o; };
+      const A = row[0], B = row[row.length - 1], d = A.distanceTo(B);
+      const line = put(tubeGeo, over(tok("--ink")), A.clone().add(B).multiplyScalar(0.5), 10);
+      line.scale.set(0.012 * a, d, 0.012 * a); line.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize());
+      row.forEach(q => put(sphereGeo, over("#ffffff"), q, 12).scale.setScalar(0.034 * a));
+      for (let k = 0; k < row.length - 1; k++) put(sphereGeo, over(tok("--amber")), row[k].clone().add(row[k + 1]).multiplyScalar(0.5), 11).scale.setScalar(0.028 * a);
+      tipEl.hidden = false; tipEl.textContent = TOUCH[type].txt + " White dots mark the centres; orange dots mark where two atoms touch.";
+    }
     v.refit();
     stats();
   }
@@ -2251,7 +2292,8 @@ function clipPlanesFrom(v, defs) {
   pressGroup($("#cellType"), t => setType(t));
   pressGroup($("#cellMode"), m => { mode = m; build(); });
   toggle($("#cellReps"), on => { reps = on ? 2 : 1; build(); });
-  toggle($("#cellPlane"), on => { plane = on; build(); });
+  toggle($("#cellPlane"), on => { plane = on; if (on && touch) { touch = false; $("#cellTouch").setAttribute("aria-pressed", "false"); } build(); });
+  toggle($("#cellTouch"), on => { touch = on; if (on && plane) { plane = false; $("#cellPlane").setAttribute("aria-pressed", "false"); } build(); });
   toggle($("#cellSpin"), on => { v.spin = on; });
   v.onClick = ndc => {
     const hit = v.pick(ndc, atomMeshes);
@@ -2280,7 +2322,7 @@ function clipPlanesFrom(v, defs) {
     stats(mode === "nbr" ? INFO[type].cn : undefined);
   });
   tabs.cells = { shown: () => { v.size(); v.dirty = true; }, tick: () => v.render(), theme: () => build(), resize: () => v.size(),
-    state: () => ({ type, mode, reps, plane, ironT: +iron.value, combos: Array.from(combos) }) };
+    state: () => ({ type, mode, reps, plane, touch, ironT: +iron.value, combos: Array.from(combos) }) };
   window.__cells = { root: () => v.root };   // for the tests: every rod must join two touching atoms
   const look111 = () => { v.rotX = 0.6155; v.rotY = -Math.PI / 4; v.zoom = 1; v.dirty = true; };  // view straight down the cube diagonal [111]
   mountGuide("cells", [
@@ -2793,7 +2835,8 @@ function clipPlanesFrom(v, defs) {
 /* ============================================================ DISLOCATION */
 (function dislocation() {
   const half = 11, NC = 2 * half + 1, ROWS = 5;
-  let mode = "disl", xd = -15, t = 0, running = false, solute = false, gb = false, burgers = false, done = false, stepTo = null;
+  const START = -7.5;   // the dislocation starts inside the crystal: real crystals already contain them
+  let mode = "disl", xd = START, t = 0, running = false, solute = false, gb = false, burgers = false, done = false, stepTo = null;
   const SOL_X = -4, GB_X = 6, GB_TH = 35 * Math.PI / 180;   // grain B is turned by 35°
   const tauIn = $("#dislTau");
   tauIn.addEventListener("input", () => { $("#dislTauOut").textContent = tauIn.value; draw(); });
@@ -2813,7 +2856,7 @@ function clipPlanesFrom(v, defs) {
   toggle($("#dislGB"), on => { gb = on; draw(); });
   toggle($("#dislBurgers"), on => { burgers = on; draw(); });
   let dgeo = null;
-  function reset() { xd = -15; t = 0; running = false; done = false; stepTo = null; $("#dislGo").textContent = "Push"; draw(); }
+  function reset() { xd = START; t = 0; running = false; done = false; stepTo = null; $("#dislGo").textContent = "Push"; draw(); }
   function need(p) {
     if (mode === "rigid") return 95;
     if (gb && Math.abs(p - (GB_X + 0.5)) < 0.6) return 101;
@@ -4961,10 +5004,22 @@ function clipPlanesFrom(v, defs) {
   function label(ctx, text, x, y, color, align, font) {
     ctx.font = font || ("600 12px " + FONT.body()); ctx.fillStyle = color; ctx.textAlign = align || "left"; ctx.fillText(text, x, y);
   }
+  /* a label beside the point x: to its right if it fits inside ib, else to its left, else the next (shorter) text */
+  function side(ctx, texts, x, y, ib, color, font) {
+    font = font || ("600 11px " + FONT.body()); ctx.font = font;
+    for (let k = 0; k < texts.length; k++) {
+      const w = ctx.measureText(texts[k]).width, last = k === texts.length - 1;
+      if (x + 8 + w <= ib.x + ib.w - 2) return label(ctx, texts[k], x + 8, y, color, "left", font);
+      if (x - 8 - w >= ib.x + 2) return label(ctx, texts[k], x - 8, y, color, "right", font);
+      if (last) return label(ctx, texts[k], ib.x + ib.w - 2, y, color, "right", font);
+    }
+  }
 
   /* ================================================== view 1: carbon into steel */
   const R = 8.314, D0 = 2.3e-5, QD = 148000, C0 = 0.20, CS = 1.00, CT = 0.60;
-  const Z = 0.476936;                          // erf(Z) = 0.5: 0.60 wt% is halfway between C0 and CS
+  // erf(Z) = 0.5: 0.60 wt% is halfway between C0 and CS. Exact Z is 0.4769; we use Callister's interpolated 0.4747
+  // (Eq. 5.10) so the times match Design Example 5.1 and the 11A slide (29.4 / 15.8 / 8.9 / 5.3 h); the difference is <1%.
+  const Z = 0.4747;
   const SPEED = 4;                             // furnace hours per second of watching
   const Dof = Tc => D0 * Math.exp(-QD / (R * (Tc + 273)));
   const conc = (xmm, D, h) => { if (h <= 0) return xmm <= 0 ? CS : C0; return C0 + (CS - C0) * (1 - erf(xmm / (2 * Math.sqrt(D * h * 3600) * 1000))); };
@@ -5051,7 +5106,7 @@ function clipPlanesFrom(v, defs) {
     ctx.strokeStyle = tok("--ink"); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, y0 - 6); ctx.lineTo(x0, y0 + s * NY + 6); ctx.stroke();
     label(ctx, "surface", x0 + 3, y0 + s * NY + fR + 15, tok("--muted"), "left", "11px " + FONT.body());
     label(ctx, "deeper →", x0 + s * NX, y0 + s * NY + fR + 15, tok("--muted"), "right", "11px " + FONT.body());
-    label(ctx, "carbon drawn about 10× denser than real", b.x + b.w - 10, b.y + b.h - 8, tok("--muted"), "right", "10px " + FONT.body());
+    label(ctx, b.w < 330 ? "≈10× denser than real" : "carbon drawn about 10× denser than real", b.x + b.w - 10, b.y + b.h - 8, tok("--muted"), "right", "10px " + FONT.body());
   }
   function pos(a, gp) {
     const [x1, y1] = gp(a.i, a.j), [x0, y0] = gp(a.pi, a.pj), e = ease(a.k);
@@ -5086,7 +5141,7 @@ function clipPlanesFrom(v, defs) {
     ctx.restore();
     label(ctx, "surface 1.00", ib.x + ib.w - 4, py(CS) - 5, tok("--muted"), "right", "11px " + FONT.body());
     label(ctx, "start 0.20", ib.x + ib.w - 4, py(C0) - 5, tok("--muted"), "right", "11px " + FONT.body());
-    label(ctx, "goal: 0.60 at " + X.toFixed(2) + " mm", gx + 9, gy - 8, tok("--teal"), "left", "600 11px " + FONT.body());
+    side(ctx, ["goal: 0.60 at " + X.toFixed(2) + " mm", "goal"], gx + 1, gy - 8, ib, tok("--teal"));
   }
   function drawArr(ctx, b, D) {
     panel(ctx, b, "How fast carbon spreads: D against temperature", "D against temperature");
@@ -5099,8 +5154,7 @@ function clipPlanesFrom(v, defs) {
     ctx.strokeStyle = tok("--teal"); ctx.setLineDash([4, 3]); ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x, ib.y + ib.h); ctx.lineTo(x, y); ctx.lineTo(ib.x, y); ctx.stroke(); ctx.setLineDash([]);
     ctx.fillStyle = tok("--teal"); ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
     const hop = 6 * D / Math.pow(0.254e-9, 2);
-    const right = x > ib.x + ib.w * 0.55;
-    label(ctx, "D = " + sci(D) + " m²/s", x + (right ? -9 : 9), y + 16, tok("--teal"), right ? "right" : "left");
+    side(ctx, ["D = " + sci(D) + " m²/s", sci(D)], x, y + 16, ib, tok("--teal"), "600 12px " + FONT.body());
     if (b.w >= 330) label(ctx, "each carbon atom hops ≈ " + sci(hop, 0) + " times a second", ib.x + 6, ib.y + 12, tok("--muted"), "left", "11px " + FONT.body());
   }
   function drawDepth(ctx, b, D) {
@@ -5135,7 +5189,7 @@ function clipPlanesFrom(v, defs) {
       label(ctx, t + "°", Math.min(x + 3, ib.x + ib.w - 2), Math.max(y - 3, ib.y + 10), tok("--muted"), x > ib.x + ib.w - 30 ? "right" : "left", "11px " + FONT.mono());
     });
     label(ctx, "needed: " + X.toFixed(2) + " mm", ib.x + 6, py(X) - 6, tok("--teal"), "left", "600 11px " + FONT.body());
-    if (tN <= tmax) label(ctx, fmtH(tN) + " at " + T + " °C", px(tN) + 6, ib.y + ib.h - 8, tok("--accent"), px(tN) > ib.x + ib.w - 110 ? "right" : "left");
+    if (tN <= tmax) side(ctx, [fmtH(tN) + " at " + T + " °C", fmtH(tN)], px(tN) - 2, ib.y + ib.h - 8, ib, tok("--accent"), "600 12px " + FONT.body());
     else label(ctx, "needs " + fmtH(tN) + " at " + T + " °C", ib.x + ib.w - 4, ib.y + ib.h - 8, tok("--accent"), "right");
   }
   function drawA() {
@@ -5153,7 +5207,7 @@ function clipPlanesFrom(v, defs) {
   function setTime(h) { th = clamp(h, 0, 80); $("#cbTime").value = th; $("#cbTimeOut").textContent = th.toFixed(1) + " h"; }
   function setRun(on) { running = on; const done = th >= need(Dof(T), X) - 1e-6; $("#cbRun").textContent = on ? "Pause" : (th > 0 && th < 80 && !(stopAt && done) ? "Keep running" : th > 0 ? "Run again" : "Run the furnace"); }
   $("#cbT").addEventListener("input", e => { T = +e.target.value; $("#cbTOut").textContent = T + " °C"; setTime(0); setRun(false); drawA(); });
-  $("#cbX").addEventListener("input", e => { X = +e.target.value; $("#cbXOut").textContent = X.toFixed(2) + " mm"; drawA(); });
+  $("#cbX").addEventListener("input", e => { X = +e.target.value; $("#cbXOut").textContent = X.toFixed(2) + " mm"; setRun(running); drawA(); });
   $("#cbTime").addEventListener("input", e => { setRun(false); setTime(+e.target.value); drawA(); });
   $("#cbRun").addEventListener("click", () => {
     if (running) { setRun(false); return; }
@@ -5161,7 +5215,8 @@ function clipPlanesFrom(v, defs) {
     if (th >= 80 || (stopAt && th >= tN - 1e-6)) setTime(0);
     setRun(true);
   });
-  $("#cbReset").addEventListener("click", () => { setRun(false); setTime(0); initAtoms(); drawA(); });
+  // a fresh specimen forgets earlier runs, so a Learn goal is not met by a run made before the step began
+  $("#cbReset").addEventListener("click", () => { setRun(false); setTime(0); hits.length = 0; initAtoms(); drawA(); });
   toggle($("#cbStop"), on => { stopAt = on; });
   toggle($("#cbFollow"), on => { follow = on; if (on) pickFollow(); else { followA = null; trail = []; } drawA(); });
   function tickA(dt) {
@@ -5169,15 +5224,18 @@ function clipPlanesFrom(v, defs) {
     if (running) {
       const D = Dof(T), tN = need(D, X), before = th;
       let next = th + dt * SPEED;
-      if (before < tN && next >= tN) { hits.push({ T, x: X, t: tN }); if (stopAt) { next = tN; setRun(false); } }
-      if (next >= 80) { next = 80; setRun(false); }
-      setTime(next);
+      let stop = false;
+      if (before < tN && next >= tN) { hits.push({ T, x: X, t: tN }); if (stopAt) { next = tN; stop = true; } }
+      if (next >= 80) { next = 80; stop = true; }
+      setTime(next); if (stop) setRun(false);   // time first, so the button reads "Run again", not "Keep running"
     }
     drawA();
   }
 
   /* ========================================== view 2: nucleation and growth */
   const TM = 1273, QG = 20000, BN = 8e7, L = 200, RES = 240, AREA = L * L;   // K, K, K·K², µm, pixels, µm²
+  const UP = 3, HR = RES * UP;                                                  // the picture is drawn UP times finer than the timing grid
+  let tones = [], look = "micro";
   const G0 = 8 * Math.exp(QG / (TM - 10));                                      // Ġ = 8 µm/s just below Tm
   const KN = Math.pow(600 / (0.88 * AREA), 1.5) * G0 / Math.exp(-BN / ((TM - 400) * 160000));   // about 600 grains at 400 °C below
   function ratesAt(dT) {   // per µm² per s, and µm/s
@@ -5212,20 +5270,68 @@ function clipPlanesFrom(v, defs) {
       nx.push(x); ny.push(y); nt.push(t); if (tFirst === Infinity) tFirst = t;
     }
     const n = RES * RES, arr = new Float64Array(n).fill(Infinity), own = new Int32Array(n).fill(-1), h = L / RES;
+    // nuclei in a wrapping grid of bins over the whole area; each pixel searches rings of bins outward and stops when
+    // no nucleus farther out could arrive sooner (exact, but fast when there are thousands of nuclei)
+    const NG = Math.max(1, Math.min(256, Math.round(LB / (4 * h)), Math.round(Math.sqrt(nt.length)))),   // about one nucleus per bin
+      CG = LB / NG, grid = Array.from({ length: NG * NG }, () => []);
+    for (let k = 0; k < nt.length; k++) grid[(Math.floor(ny[k] / CG) % NG) * NG + Math.floor(nx[k] / CG) % NG].push(k);
+    const t0 = nt.length ? nt[0] : Infinity, rMax = Math.ceil(NG / 2);
     for (let p = 0; p < n; p++) {
-      const x = o + (p % RES + 0.5) * h, y = o + (Math.floor(p / RES) + 0.5) * h;
+      const x = o + (p % RES + 0.5) * h, y = o + (Math.floor(p / RES) + 0.5) * h, gx = Math.floor(x / CG), gy = Math.floor(y / CG);
       let best = Infinity, who = -1;
-      for (let k = 0; k < nt.length; k++) {
-        if (nt[k] >= best) break;
-        const dx = wrap(x - nx[k]), dy = wrap(y - ny[k]), c = nt[k] + Math.sqrt(dx * dx + dy * dy) / G;
-        if (c < best) { best = c; who = k; }
+      for (let r = 0; r <= rMax; r++) {
+        if (r > 0 && t0 + (r - 1) * CG / G >= best) break;   // every bin in this ring is at least (r − 1) bins away
+        for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i += (j === -r || j === r || r === 0) ? 1 : 2 * r) {   // the ring's edge only
+          const B = grid[(((gy + j) % NG + NG) % NG) * NG + ((gx + i) % NG + NG) % NG];
+          for (let q = 0; q < B.length; q++) {
+            const k = B[q]; if (nt[k] >= best) continue;
+            const dx = wrap(x - nx[k]), dy = wrap(y - ny[k]), c = nt[k] + Math.sqrt(dx * dx + dy * dy) / G;
+            if (c < best || (c === best && k < who)) { best = c; who = k; }
+          }
+        }
       }
       arr[p] = best; own[p] = who;
     }
-    const bnd = new Float64Array(n).fill(Infinity);
-    for (let p = 0; p < n; p++) {
-      const i = p % RES, q1 = i < RES - 1 ? p + 1 : p - i, q2 = p + RES < n ? p + RES : p % RES;
-      [q1, q2].forEach(q => { if (own[q] !== own[p]) { const m = Math.max(arr[p], arr[q]); if (m < bnd[p]) bnd[p] = m; if (m < bnd[q]) bnd[q] = m; } });
+    // the picture, UP times finer: each fine pixel takes the exact arrival times of the nearest grains around it
+    // (c1 first, c2 second), so grain edges and boundaries are smooth curves, not the coarse pixel staircase
+    const hA = new Float32Array(HR * HR), hO = new Int32Array(HR * HR), hB = new Float32Array(HR * HR), hD = new Float32Array(HR * HR), hh = L / HR;
+    const sw = d => d - LB * Math.round(d / LB);   // signed separation on the wrapping square
+    // nuclei binned by place, so small late grains that own none of the coarse cells are still found
+    const BS = 4 * h, NB = Math.ceil(L / BS) + 2, bins = Array.from({ length: NB * NB }, () => []);
+    for (let k = 0; k < nt.length; k++) for (const sx of [-LB, 0, LB]) for (const sy of [-LB, 0, LB]) {
+      const bx = Math.floor((nx[k] - o + sx) / BS) + 1, by = Math.floor((ny[k] - o + sy) / BS) + 1;
+      if (bx >= 0 && bx < NB && by >= 0 && by < NB) bins[by * NB + bx].push(k);
+    }
+    const cand = [], seenK = new Int32Array(nt.length).fill(-1);
+    for (let ly = 0; ly < RES; ly++) for (let lx = 0; lx < RES; lx++) {
+      // candidates for this coarse cell, gathered once: owners of the 5 × 5 coarse cells around it, and nuclei nearby
+      const id = ly * RES + lx; cand.length = 0;
+      for (let dy = -2; dy <= 2; dy++) {
+        const yy = ly + dy; if (yy < 0 || yy >= RES) continue;
+        for (let dx = -2; dx <= 2; dx++) { const xx = lx + dx; if (xx < 0 || xx >= RES) continue; const w = own[yy * RES + xx]; if (w >= 0 && seenK[w] !== id) { seenK[w] = id; cand.push(w); } }
+      }
+      const bx0 = Math.floor((lx + 0.5) * h / BS) + 1, by0 = Math.floor((ly + 0.5) * h / BS) + 1;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const yy = by0 + dy, xx = bx0 + dx; if (yy < 0 || yy >= NB || xx < 0 || xx >= NB) continue;
+        const B = bins[yy * NB + xx]; for (let q = 0; q < B.length; q++) { const w = B[q]; if (seenK[w] !== id) { seenK[w] = id; cand.push(w); } }
+      }
+      for (let sy = 0; sy < UP; sy++) for (let sx = 0; sx < UP; sx++) {
+        const Y = ly * UP + sy, Xp = lx * UP + sx, x = o + (Xp + 0.5) * hh, y = o + (Y + 0.5) * hh;
+        let c1 = Infinity, c2 = Infinity, w1 = -1, w2 = -1;
+        for (let q = 0; q < cand.length; q++) {
+          const k = cand[q], ex = sw(x - nx[k]), ey = sw(y - ny[k]), c = nt[k] + Math.sqrt(ex * ex + ey * ey) / G;
+          if (c < c1) { c2 = c1; w2 = w1; c1 = c; w1 = k; } else if (c < c2) { c2 = c; w2 = k; }
+        }
+        // distance to the boundary = (c2 − c1) / |gradient of (c2 − c1)|; the gradient is (û₁ − û₂)/Ġ, with û the unit
+        // vectors from each nucleus. Head-on fronts give (c2 − c1)Ġ/2; a late grain growing behind another's front is wider
+        let dist = 1e9;
+        if (w2 >= 0) {
+          const ax = sw(x - nx[w1]), ay = sw(y - ny[w1]), bx = sw(x - nx[w2]), by = sw(y - ny[w2]);
+          const ra = Math.sqrt(ax * ax + ay * ay) || 1e-9, rb = Math.sqrt(bx * bx + by * by) || 1e-9, gx = ax / ra - bx / rb, gy = ay / ra - by / rb;
+          dist = (c2 - c1) * G / Math.max(0.05, Math.sqrt(gx * gx + gy * gy));
+        }
+        const p = Y * HR + Xp; hA[p] = c1; hO[p] = w1; hB[p] = c2; hD[p] = dist;   // µm to the boundary
+      }
     }
     const sorted = Float64Array.from(arr).sort();
     const tq = q => sorted[Math.min(n - 1, Math.floor(q * (n - 1)))];
@@ -5237,10 +5343,12 @@ function clipPlanesFrom(v, defs) {
     for (let k = 0; k < nt.length; k++) if (nx[k] >= o && nx[k] <= o + L && ny[k] >= o && ny[k] <= o + L) seen[k] = Math.min(seen[k], nt[k]);   // born inside the window: counts at once
     const seenT = Array.from(seen).filter(isFinite).sort((a, b) => a - b);
     const grains = seenT.length, dens = nt.length / (LB * LB) * 1e6;   // grains in the window; grains per mm² in the whole area
-    sim = { N, G, nx: nx.map(v => v - o), ny: ny.map(v => v - o), nt, arr, own, bnd, sorted, none, th, thA: tA, lo, hi, grains, seenT, dens,
+    sim = { N, G, nx: nx.map(v => v - o), ny: ny.map(v => v - o), nt, arr, own, hA, hO, hB, hD, sorted, none, th, thA: tA, lo, hi, grains, seenT, dens,
       size: nt.length ? 2 * Math.sqrt(LB * LB / (Math.PI * nt.length)) : 0, mode, dT };
     palette = nt.map((_, k) => grainRGB(k));
-    runs.push({ mode, dT, N, G, grains, dens, th, none }); if (runs.length > 60) runs.shift();
+    tones = nt.map((_, k) => { const r = Math.sin(k * 12.9898 + seed * 0.001) * 43758.5453; return r - Math.floor(r); });   // etch shade of each grain
+    sim.run = { mode, dT, N, G, grains, dens, th, none };
+    runs.push(sim.run); if (runs.length > 60) runs.shift();
     u = 0; playing = true; setNgRun();
   }
   function frac(t) {   // fraction frozen at time t, by binary search in the sorted freezing times
@@ -5256,20 +5364,69 @@ function clipPlanesFrom(v, defs) {
     return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
   }
   const tNow = () => sim ? sim.lo * Math.pow(sim.hi / sim.lo, clamp(u, 0, 1)) : 0;
-  let noise = null;
+  /* textures of a polished, etched section, made once: smooth etch mottling, film grain, polishing scratches */
+  let tex = null;
+  function makeTex() {
+    const rnd = rng(9173), n = HR * HR;
+    const vnoise = cells => {   // value noise: random values on a coarse grid, smoothly interpolated
+      const g = new Float32Array((cells + 1) * (cells + 1)).map(() => rnd() * 2 - 1), out = new Float32Array(n);
+      for (let y = 0; y < HR; y++) {
+        const fy = y / HR * cells, iy = Math.floor(fy), ty = fy - iy, sy = ty * ty * (3 - 2 * ty);
+        for (let x = 0; x < HR; x++) {
+          const fx = x / HR * cells, ix = Math.floor(fx), tx = fx - ix, sx = tx * tx * (3 - 2 * tx), r0 = iy * (cells + 1), r1 = r0 + cells + 1;
+          const a = g[r0 + ix] + (g[r0 + ix + 1] - g[r0 + ix]) * sx, b = g[r1 + ix] + (g[r1 + ix + 1] - g[r1 + ix]) * sx;
+          out[y * HR + x] = a + (b - a) * sy;
+        }
+      }
+      return out;
+    };
+    const n1 = vnoise(5), n2 = vnoise(17), n3 = vnoise(41), n4 = vnoise(97), low = new Float32Array(n), cell = new Float32Array(n), fine = new Float32Array(n), scr = new Float32Array(n);
+    for (let p = 0; p < n; p++) { low[p] = 0.65 * n1[p] + 0.35 * n2[p]; cell[p] = 0.6 * n3[p] + 0.4 * n4[p]; fine[p] = rnd() * 2 - 1; }
+    const liq = new Float32Array(n), mot = new Float32Array(n);   // the quenched-liquid grey, and the etch mottling added to a grain's grey
+    for (let p = 0; p < n; p++) { liq[p] = 74 + 16 * low[p] + 12 * cell[p] + 5 * fine[p]; mot[p] = 9 * low[p] + 4 * fine[p]; }
+    for (let s = 0; s < 7; s++) {   // fine straight polishing scratches, mostly in one direction
+      const ang = 0.5 + (rnd() - 0.5) * (s < 5 ? 0.35 : 2.5), cx = rnd() * HR, cy = rnd() * HR, ux = Math.cos(ang), uy = Math.sin(ang), dep = 0.05 + 0.07 * rnd(), wd = 0.5 + 0.6 * rnd();
+      for (let y = 0; y < HR; y++) for (let x = 0; x < HR; x++) {
+        const dd = Math.abs((x - cx) * uy - (y - cy) * ux); if (dd < 2.2) scr[y * HR + x] = Math.max(scr[y * HR + x], dep * Math.exp(-dd * dd / (wd * wd)));
+      }
+    }
+    tex = { fine, scr, liq, mot };
+  }
   function paintField(t) {
-    if (!off) { off = document.createElement("canvas"); off.width = off.height = RES; offCtx = off.getContext("2d"); img = offCtx.createImageData(RES, RES); }
-    if (!noise) { noise = new Float32Array(RES * RES); for (let p = 0; p < noise.length; p++) noise[p] = Math.random(); }
-    const d = img.data, liq = hexRgb(isDark() ? "#2a3644" : "#c7d1dc"), gb = isDark() ? [12, 16, 22] : [40, 48, 58];
-    for (let p = 0, o = 0; p < RES * RES; p++, o += 4) {
-      const a = sim.arr[p];
-      if (a > t) { const v = (noise[p] - 0.5) * 14; d[o] = liq[0] + v; d[o + 1] = liq[1] + v; d[o + 2] = liq[2] + v; d[o + 3] = 255; continue; }
-      if (sim.bnd[p] <= t) { d[o] = gb[0]; d[o + 1] = gb[1]; d[o + 2] = gb[2]; d[o + 3] = 255; continue; }
-      const c = palette[sim.own[p]], front = a > t / 1.12 ? 0.45 : 0;
-      d[o] = c[0] + (255 - c[0]) * front; d[o + 1] = c[1] + (255 - c[1]) * front; d[o + 2] = c[2] + (255 - c[2]) * front; d[o + 3] = 255;
+    if (!off) { off = document.createElement("canvas"); off.width = off.height = HR; offCtx = off.getContext("2d"); img = offCtx.createImageData(HR, HR); }
+    if (!tex) makeTex();
+    const d = img.data, micro = look === "micro", G = sim.G, hh = L / HR, tE = t + hh / G, wB = 0.42;   // wB: half-width of an etched boundary (µm)
+    const { fine, scr, liq, mot } = tex, hA = sim.hA, hO = sim.hO, hB = sim.hB, hD = sim.hD;
+    const liqC = hexRgb(isDark() ? "#2a3644" : "#c7d1dc"), gbC = isDark() ? [12, 16, 22] : [40, 48, 58];
+    for (let p = 0, o = 0; p < HR * HR; p++, o += 4) {
+      // the liquid; in the micrograph, the still-liquid part as a dark, finely mottled matrix (as if quenched now)
+      let lr, lg, lb;
+      if (micro) { const v = liq[p]; lr = v; lg = v * 0.99; lb = v * 0.97; }
+      else { const v = 7 * fine[p]; lr = liqC[0] + v; lg = liqC[1] + v; lb = liqC[2] + v; }
+      const c1 = hA[p], w = hO[p];
+      if (w < 0 || c1 >= tE) { d[o] = lr; d[o + 1] = lg; d[o + 2] = lb; d[o + 3] = 255; if (micro) shade(d, o, scr[p]); continue; }
+      const s = Math.min(1, (t - c1) * G / hh + 0.5);   // fraction of this pixel already solid: smooth crystal edges
+      let sr, sg, sb;
+      if (micro) {   // each grain etches to its own grey (it depends on the crystal's orientation), with mottling and film grain
+        const v = 140 + 88 * tones[w] + mot[p]; sr = v; sg = v * 0.985; sb = v * 0.95;
+      } else {
+        const c = palette[w], front = c1 > t / 1.12 ? 0.45 : 0;
+        sr = c[0] + (255 - c[0]) * front; sg = c[1] + (255 - c[1]) * front; sb = c[2] + (255 - c[2]) * front;
+      }
+      let r = lr + (sr - lr) * s, g = lg + (sg - lg) * s, b = lb + (sb - lb) * s;
+      // a grain boundary where this crystal has met its neighbour: an etched groove, darkest on the line itself
+      const c2 = hB[p];
+      if (c2 < tE) {
+        const form = Math.min(1, (t - c2) * G / hh + 0.5), q = hD[p] / wB, k = form * Math.exp(-q * q);
+        if (micro) { const m = 1 - 0.8 * k; r *= m; g *= m; b *= m; }
+        else { r += (gbC[0] - r) * k; g += (gbC[1] - g) * k; b += (gbC[2] - b) * k; }
+      }
+      d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = 255;
+      if (micro) shade(d, o, scr[p]);
     }
     offCtx.putImageData(img, 0, 0);
   }
+  function shade(d, o, k) { if (k > 0) { const m = 1 - k; d[o] *= m; d[o + 1] *= m; d[o + 2] *= m; } }
   function layoutB(w, h) {
     const H = h - 62, g = 10;
     if (w >= H * 1.3) {
@@ -5283,10 +5440,16 @@ function clipPlanesFrom(v, defs) {
     paintField(t);
     ctx.save(); ctx.imageSmoothingEnabled = true;
     ctx.drawImage(off, f.x, f.y, f.s, f.s);
+    const micro = look === "micro";
+    if (micro) {   // the microscope's illumination falls off towards the corners
+      const vg = ctx.createRadialGradient(f.x + f.s / 2, f.y + f.s / 2, f.s * 0.3, f.x + f.s / 2, f.y + f.s / 2, f.s * 0.75);
+      vg.addColorStop(0, "rgba(20,14,6,0)"); vg.addColorStop(1, "rgba(20,14,6,0.38)");
+      ctx.fillStyle = vg; ctx.fillRect(f.x, f.y, f.s, f.s);
+    }
     ctx.strokeStyle = tok("--rule"); ctx.lineWidth = 1; ctx.strokeRect(f.x + 0.5, f.y + 0.5, f.s - 1, f.s - 1);
     // nuclei that have just appeared
     const k = f.s / L; let shown = 0;
-    ctx.strokeStyle = isDark() ? "#ffffff" : "#17212c"; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = micro ? "#ff5a5f" : isDark() ? "#ffffff" : "#17212c"; ctx.lineWidth = 1.5;
     for (let i = 0; i < sim.nt.length && shown < 400; i++) {
       const a = sim.nt[i]; if (a > t) break;
       if (t / a > 1.5) continue;
@@ -5295,11 +5458,13 @@ function clipPlanesFrom(v, defs) {
     }
     // scale bar
     const bar = 50 * k, bx = f.x + f.s - bar - 12, by = f.y + f.s - 14;
-    ctx.fillStyle = isDark() ? "#e5eaf0" : "#17212c"; ctx.fillRect(bx, by, bar, 3);
-    label(ctx, "50 µm", bx + bar / 2, by - 5, ctx.fillStyle, "center", "600 11px " + FONT.mono());
+    // as printed on a micrograph: a white box with a black bar, readable over any grain
+    ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.fillRect(bx - 6, by - 16, bar + 12, 22);
+    ctx.fillStyle = "#1a1a1a"; ctx.fillRect(bx, by, bar, 3);
+    label(ctx, "50 µm", bx + bar / 2, by - 4, ctx.fillStyle, "center", "600 11px " + FONT.mono());
     ctx.restore();
     const y = frac(t);
-    tag(ctx, "t = " + fmtS(t) + " · " + Math.round(100 * y) + "% frozen · " + countBorn(t) + " grains", f.x + 8, f.y + 16, "left", tok("--ink"));
+    tag(ctx, "t = " + fmtS(t) + " · " + Math.round(100 * y) + "% frozen · " + countBorn(t) + (countBorn(t) === 1 ? " grain" : " grains"), f.x + 8, f.y + 16, "left", tok("--ink"));
   }
   function countBorn(t) { const a = sim.seenT; let lo = 0, hi = a.length; while (lo < hi) { const m = (lo + hi) >> 1; if (a[m] <= t) lo = m + 1; else hi = m; } return lo; }
   const TT = [0.1, 1, 10, 100, 1e3, 1e4, 1e5, 1e6];
@@ -5328,14 +5493,20 @@ function clipPlanesFrom(v, defs) {
       }
     }
     ctx.restore();
-    ghosts.forEach(gh => { if (isFinite(gh.th) && gh.th > 0.1 && gh.th < 1e6) label(ctx, gh.lab, px(gh.th) + 4, py(0.5) + 14, tok("--muted"), "left", "10px " + FONT.mono()); });
+    // old curves' labels in rows below the half-way line, so labels of curves close together do not print on top of each other
+    const gf = "10px " + FONT.mono(), ends = []; ctx.font = gf;
+    ghosts.filter(gh => gh.lab && isFinite(gh.th) && gh.th > 0.1 && gh.th < 1e6).sort((a, c) => a.th - c.th).forEach(gh => {
+      const w = ctx.measureText(gh.lab).width, x = Math.min(px(gh.th) + 4, ib.x + ib.w - w - 2);
+      let row = 0; while (row < 4 && ends[row] !== undefined && x < ends[row] + 4) row++;
+      ends[row] = x + w; label(ctx, gh.lab, x, py(0.5) + 14 + 12 * row, tok("--muted"), "left", gf);
+    });
     if (!sim.none && t >= sim.th) label(ctx, "t½ = " + fmtS(sim.th), px(sim.th) + 6, py(0.5) - 6, tok("--teal"), px(sim.th) > ib.x + ib.w - 90 ? "right" : "left");
     // key
     const ky = ib.y + ib.h - 10, kx = ib.x + ib.w - 6;
     ctx.font = "11px " + FONT.body(); ctx.textAlign = "right";
     ctx.fillStyle = tok("--muted"); ctx.fillText("dashed: Avrami, n = 3", kx, ky);
     if (sim.none) label(ctx, "no crystal started within 10⁶ s (12 days)", ib.x + ib.w / 2, ib.y + ib.h / 2, tok("--accent"), "center");
-    else if (sim.grains < 4) label(ctx, "grains are bigger than the window: they grow in from outside it", ib.x + ib.w - 6, ib.y + ib.h - 24, tok("--muted"), "right", "11px " + FONT.body());
+    else if (sim.grains < 4 && frac(t) > 0) label(ctx, "grains are bigger than the window: they grow in from outside it", ib.x + ib.w - 6, ib.y + ib.h - 24, tok("--muted"), "right", "11px " + FONT.body());
   }
   function drawRates(ctx, b) {
     panel(ctx, b, "Rates against temperature (after Callister Fig. 10.8)");
@@ -5374,8 +5545,8 @@ function clipPlanesFrom(v, defs) {
     for (let k = 0; k <= 60; k++) { const r = 10 * Math.pow(1e6, k / 60), y = py(0.88 * Math.pow(r, 2 / 3)); if (k) ctx.lineTo(px(r), y); else ctx.moveTo(px(r), y); }
     ctx.stroke(); ctx.setLineDash([]);
     const dot = (r, c, rad) => { if (!r.dens) return; const x = r.N * 1e6 / (r.G * 1e-3), y = r.dens; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(px(x), py(y), rad, 0, Math.PI * 2); ctx.fill(); };
-    runs.slice(0, -1).forEach(r => dot(r, rgba(tok("--muted"), 0.6), 3.5));
-    if (runs.length) dot(runs[runs.length - 1], tok("--accent"), 6);
+    runs.forEach(r => { if (r !== sim.run) dot(r, rgba(tok("--muted"), 0.6), 3.5); });
+    dot(sim.run, tok("--accent"), 6);
     ctx.restore();
     label(ctx, "dashed: theory, 0.88 (Ṅ/Ġ)^⅔", ib.x + ib.w - 6, ib.y + ib.h - 10, tok("--muted"), "right", "11px " + FONT.body());
   }
@@ -5407,7 +5578,7 @@ function clipPlanesFrom(v, defs) {
     }
     $("#ngDT").disabled = mode !== "temp"; $("#ngN").disabled = mode === "temp"; $("#ngG").disabled = mode === "temp";
     $("#ngCap").textContent = mode === "temp"
-      ? "The temperature sets both rates. Just below the melting point atoms move easily, so crystals grow fast, but new crystals hardly ever start. Far below it, crystals start easily but atoms move slowly."
+      ? "The temperature sets both rates: Ṅ, how many new crystals start each second in each mm² of liquid, and Ġ, how fast each crystal's edge moves. Just below the melting point atoms move easily, so crystals grow fast, but new crystals hardly ever start. Far below it, crystals start easily but atoms move slowly."
       : "Set the two rates yourself. Ṅ is how many new crystals start each second in each mm² of liquid; Ġ is how fast each crystal's edge moves outward.";
   }
   function retire() {   // keep the finished run's curve as a faint reference
@@ -5424,7 +5595,9 @@ function clipPlanesFrom(v, defs) {
   $("#ngG").addEventListener("input", e => { lgG = +e.target.value; changed(); });
   $("#ngRun").addEventListener("click", () => { if (playing) playing = false; else { if (u >= 1) u = 0; playing = true; } setNgRun(); dirtyB = true; });
   $("#ngNew").addEventListener("click", () => { seed = (seed * 16807 + 11) % 2147483647; retire(); compute(); drawB(); });
-  $("#ngClear").addEventListener("click", () => { ghosts = []; runs = sim ? [runs[runs.length - 1]] : []; drawB(); });
+  // forget every earlier run (the current one stays drawn from sim), so a Learn goal needs a run made after the clear
+  $("#ngClear").addEventListener("click", () => { ghosts = []; runs = []; drawB(); });
+  pressGroup($("#ngLook"), v => { look = v; dirtyB = true; drawB(); });
   function tickB(dt) {
     if (playing) { u += dt / 7; if (u >= 1) { u = 1; playing = false; setNgRun(); } }
     if (playing || dirtyB) { dirtyB = false; drawB(); }
@@ -5462,13 +5635,13 @@ function clipPlanesFrom(v, defs) {
   const C = [["click", '#diffView [data-v="carb"]']], G = [["click", '#diffView [data-v="grow"]']];
   mountGuide("diff", [
     { q: "Run the furnace at 950 °C. How long until the carbon at 0.75 mm below the surface reaches 0.60 wt%?",
-      a: "About 15.6 hours. The 0.60 wt% point moves quickly at first and then more and more slowly.",
+      a: "About 15.8 hours. The 0.60 wt% point moves quickly at first and then more and more slowly.",
       setup: C.concat([["val", "#cbT", 950], ["val", "#cbX", 0.75], ["on", "#cbStop"], ["click", "#cbReset"], ["click", "#cbRun"]]) },
     { q: "Now run it at 1050 °C. How much faster is it?",
-      a: "About 5.2 hours, three times faster for 100 °C more. D = D₀ exp(−Q/RT) is three times larger at 1050 °C (lower left graph). Callister's Design Example 5.1 gives 5.3 h.",
+      a: "About 5.3 hours, three times faster for 100 °C more. D = D₀ exp(−Q/RT) is three times larger at 1050 °C (lower left graph). This is the answer to Callister's Design Example 5.1.",
       setup: C.concat([["val", "#cbT", 1050], ["val", "#cbX", 0.75], ["on", "#cbStop"], ["click", "#cbReset"], ["click", "#cbRun"]]) },
     { q: "At 950 °C, read the depth of 0.60 wt% C after 4 hours, then after 16 hours. How do they compare?",
-      a: "About 0.38 mm and 0.76 mm. Four times the time gives twice the depth, because the depth grows as √(Dt).",
+      a: "About 0.38 mm and 0.75 mm. Four times the time gives twice the depth, because the depth grows as √(Dt).",
       setup: C.concat([["val", "#cbT", 950], ["val", "#cbX", 0.75], ["click", "#cbReset"], ["val", "#cbTime", 4]]) },
     { q: "The design changes: the case must reach 1.5 mm instead of 0.75 mm, still at 950 °C. How long now?",
       a: "About 63 hours, four times as long. Twice the depth needs four times the time.",
@@ -5483,7 +5656,7 @@ function clipPlanesFrom(v, defs) {
       a: "Fewer, larger grains, and it also finishes sooner. Each crystal grows over the liquid before new crystals get a chance to start there.",
       setup: G.concat([["click", '#ngMode [data-v="rates"]'], ["val", "#ngN", 2], ["val", "#ngG", -0.3]]) },
     { q: "Set it by temperature. Hold it 60 °C, then 150 °C, then 380 °C below the melting point. Which finishes fastest, and which gives the finest grains?",
-      a: "About 150 °C below is fastest: the nose of the C-shaped curve, where nucleation and growth are both reasonably fast. 380 °C below gives the finest grains but takes far longer, and 60 °C below hardly nucleates at all.",
+      a: "About 150 °C below is fastest: the nose of the C-shaped curve, where nucleation and growth are both reasonably fast. 380 °C below gives the finest grains but takes about 10 minutes. 60 °C below, crystals so rarely start that it takes 10 minutes or more, and the window freezes as one or two huge grains.",
       setup: G.concat([["click", '#ngMode [data-v="temp"]'], ["click", "#ngClear"], ["val", "#ngDT", 60]]) }
   ]);
   initAtoms();
@@ -5513,15 +5686,15 @@ const LESSONS = {
       { k: "watch", h: "Two atoms, far apart",
         p: "<p>Sodium gives one electron to chlorine. Now one is positive and one is negative, and opposite charges pull together. Watch them close in.</p><p>Notice that they stop. Something pushes back when they get too close.</p>",
         setup: [["click", '#bondChips [data-i="0"]'], ["click", '#bondView [data-v="curves"]'], ["val", "#bondR", 2.6]], play: [["wait", 600], ["click", "#bondForm"]] },
-      { k: "try", h: "Find where they sit",
+      { k: "try", h: "Find where they sit", focus: "#bondPlot",
         p: "<p>Drag the slider to change the spacing. The lower graph is the force you would need to hold the atoms at that spacing: above zero they pull together, below zero they push apart.</p>",
         show: ["#bondR < .range"], setup: [["val", "#bondR", 2.1]],
         goals: [{ t: "Move the atoms to the spacing where that force is zero", ok: s => near(s.x, 1, 0.025) }],
         why: "That spacing is r₀. The pull of the opposite charges and the push of the overlapping electron clouds balance, so the net force is zero and the energy is at its lowest. Every bonded pair sits at its own r₀." },
-      { k: "idea", h: "An energy well",
+      { k: "idea", h: "An energy well", focus: "#bondPlot",
         p: "<p>The energy curve (top graph) adds two parts. <b>Attraction</b> lowers the energy as the atoms approach. <b>Repulsion</b> rises very steeply once the electron clouds overlap. Their sum dips to a minimum at r₀: an energy well.</p><p class=\"lsn-eq\">bond energy E₀ = depth of the well</p><p>E₀ is the energy needed to pull the pair completely apart. For a whole solid, Callister lists a bonding energy in kJ per mole (§2.5, Table 2.3): per mole of atoms for an element, of formula units for a compound such as NaCl, of molecules for a molecular solid. These curves are schematic: one shape, scaled to each value.</p>",
         show: ["#bondParts"], setup: [["on", "#bondParts"], ["val", "#bondR", 1]] },
-      { k: "try", h: "Pull until it breaks",
+      { k: "try", h: "Pull until it breaks", focus: "#bondPlot",
         p: "<p>Pull the atoms apart and watch the force graph.</p>",
         show: ["#bondR < .range"], setup: [["val", "#bondR", 1]],
         goals: [{ t: "Pull past the top of the force curve", ok: s => s.x > 1.3 }],
@@ -5531,7 +5704,7 @@ const LESSONS = {
         show: ["#bondChips < .group"], setup: [["click", '#bondView [data-v="curves"]'], ["val", "#bondR", 1]],
         goals: [{ t: "An ionic bond (NaCl, already shown)", ok: s => s.type === "ionic" || s.seen.includes("ionic") }, { t: "A covalent bond", ok: s => s.seen.includes("covalent") }, { t: "A metallic bond", ok: s => s.seen.includes("metallic") }, { t: "A van der Waals bond", ok: s => s.seen.includes("vdw") }],
         why: "Ionic: electrons handed over. Covalent: electron pairs shared in fixed directions. Metallic: outer electrons shared by the whole crystal. Van der Waals: nothing exchanged, only a flickering imbalance of charge. The first three range from about 60 to 1500 kJ/mol; van der Waals bonds are about 4 to 30 kJ/mol and hydrogen bonds up to about 50 (Callister Table 2.3)." },
-      { k: "predict", h: "Which melts hotter?",
+      { k: "predict", h: "Which melts hotter?", after: "#bondScatter",
         p: "<p>Tungsten's bond energy is 850 kJ/mol. Mercury's is 62 kJ/mol. Both are metals.</p>",
         q: { opts: ["Tungsten, by thousands of degrees", "About the same: both are metals", "Mercury: its atoms are heavier"], ans: 0, then: [["click", '#bondChips [data-i="12"]'], ["click", '#bondView [data-v="scatter"]']] },
         why: "Tungsten melts at 3414 °C; mercury is liquid at room temperature. Stronger cohesion often goes with a higher melting temperature. Melting lets atoms or molecules rearrange while they stay close together; it does not separate them completely. The chart shows the trend across all twenty substances, with scatter: the values are counted per atom, per formula unit or per molecule, so it is a trend, not a law." },
@@ -5539,7 +5712,7 @@ const LESSONS = {
         p: "<p>Inside a Cl₂ molecule the two atoms share a covalent bond (121 kJ per mole of chlorine atoms in Table 2.3, about 242 kJ per mole of Cl–Cl bonds), yet solid chlorine melts at −101 °C. Which bonds break when it melts?</p>",
         q: { opts: ["The weak van der Waals bonds between the molecules", "The covalent bond inside each molecule", "Both"], ans: 0, then: [["click", '#bondChips [data-i="16"]']] },
         why: "Melting only has to free the molecules from each other (31 kJ per mole of Cl₂ molecules). The strong bond inside each molecule survives. Polymers work the same way: strong chains, weak bonds between chains, so they soften at modest temperatures." },
-      { k: "apply", h: "Stiffness comes from the bond",
+      { k: "apply", h: "Stiffness comes from the bond", focus: "#bondPlot",
         p: "<p>Young's modulus E measures stiffness. <b>Stress</b> σ is force per unit area; <b>strain</b> ε is the stretch divided by the original length; σ = Eε, so E is the stress needed per unit of strain. On the force graph, whose curve is steeper where it crosses zero at r₀: argon's (7.7 kJ/mol) or tungsten's (850 kJ/mol)?</p>",
         q: { opts: ["Tungsten's: more force for the same stretch, so a higher E", "Argon's: weak bonds stretch more, so they are stiffer", "Neither: both atoms sit at r₀"], ans: 0, then: [["click", '#bondView [data-v="curves"]'], ["click", '#bondChips [data-i="13"]'], ["wait", 900], ["click", '#bondChips [data-i="12"]']] },
         why: "The slope of the force curve at r₀ sets the stiffness (Callister Eq. 6.6). Tungsten's E is about 407 GPa (Callister Table 6.1); solid argon is very soft. Caution: in this schematic every curve has the same shape, so the slope grows with the well depth by construction. In real solids the depth of the well, its curvature at r₀ and the force peak are different quantities, so strong bonding usually, but not always, means a stiff, high-melting solid." }
@@ -5554,30 +5727,30 @@ const LESSONS = {
         setup: [["click", '#cellType [data-v="fcc"]'], ["click", '#cellMode [data-v="hard"]'], ["on", "#cellReps"], ["on", "#cellSpin"]] },
       { k: "work", h: "How many atoms belong to one FCC cell?",
         p: "<p>Only part of each atom on the surface is inside the cell. Click atoms to see how much of each one counts.</p>",
-        setup: [["off", "#cellReps"], ["off", "#cellSpin"], ["click", '#cellType [data-v="fcc"]'], ["click", '#cellMode [data-v="cut"]']],
+        setup: [["off", "#cellTouch"], ["off", "#cellReps"], ["off", "#cellSpin"], ["click", '#cellType [data-v="fcc"]'], ["click", '#cellMode [data-v="cut"]']],
         n: { pre: "Atoms per FCC cell =", ans: 4, tol: 0.01, hint: "A corner atom is shared by 8 cells (⅛ each); a face atom by 2 (½ each)." },
         why: "8 corners × ⅛ + 6 faces × ½ = 1 + 3 = 4 atoms." },
       { k: "work", h: "And one BCC cell?",
         p: "<p>Body-centred cubic: an atom at each corner and one in the middle.</p>",
-        setup: [["click", '#cellType [data-v="bcc"]'], ["click", '#cellMode [data-v="cut"]']],
+        setup: [["off", "#cellTouch"], ["click", '#cellType [data-v="bcc"]'], ["click", '#cellMode [data-v="cut"]']],
         n: { pre: "Atoms per BCC cell =", ans: 2, tol: 0.01, hint: "8 corners × ⅛, plus the whole atom in the middle." },
         why: "8 × ⅛ + 1 = 2 atoms." },
       { k: "try", h: "Who touches whom?",
         p: "<p>In Ball and stick, a rod joins two atoms that touch. Nothing else is drawn, so every line is a bond.</p>",
-        show: ["#cellType < .group"], setup: [["click", '#cellMode [data-v="ball"]'], ["click", '#cellType [data-v="sc"]']],
+        show: ["#cellType < .group"], setup: [["off", "#cellTouch"], ["click", '#cellMode [data-v="ball"]'], ["click", '#cellType [data-v="sc"]']],
         goals: [{ t: "Look at BCC", ok: (s, m) => saw(m, "b", s.type === "bcc") }, { t: "Look at FCC", ok: (s, m) => saw(m, "f", s.type === "fcc") }, { t: "Look at HCP", ok: (s, m) => saw(m, "h", s.type === "hcp") }],
         why: "In BCC each atom touches 8 others, along the cube's diagonals; the corner atoms never touch each other. In FCC and HCP each atom touches 12, the most that equal spheres can touch. These two are the close-packed structures." },
       { k: "idea", h: "How full is the box?",
-        p: "<p class=\"lsn-eq\">packing fraction = volume of the atoms in the cell ÷ volume of the cell</p><p>FCC and HCP fill 74% of space, BCC 68%, simple cubic 52%. In FCC the atoms touch along a face diagonal, so the cell edge a = 2R√2, where R is the atom's radius (Callister Eq. 3.1). In BCC they touch along the body diagonal: a = 4R/√3 (Eq. 3.4). Callister calls the packing fraction the atomic packing factor (APF).</p>",
-        setup: [["click", '#cellType [data-v="fcc"]'], ["click", '#cellMode [data-v="hard"]']] },
+        p: "<p class=\"lsn-eq\">packing fraction = volume of the atoms in the cell ÷ volume of the cell</p><p>FCC and HCP fill 74% of space, BCC 68%, simple cubic 52%. To work it out you need the cell edge a in terms of the atom's radius R. The red atoms are the ones that touch in a row. In FCC they lie along the diagonal of a face, so a = 2R√2 (Callister Eq. 3.1). Switch to BCC: there they lie along the diagonal through the middle of the cube, so a = 4R/√3 (Eq. 3.4). Callister calls the packing fraction the atomic packing factor (APF).</p>",
+        show: ["#cellType < .group"], setup: [["off", "#cellReps"], ["off", "#cellSpin"], ["click", '#cellType [data-v="fcc"]'], ["click", '#cellMode [data-v="hard"]'], ["on", "#cellTouch"]] },
       { k: "work", h: "Predict copper's density",
-        p: "<p>Copper is FCC. Its atomic radius is R = 0.1278 nm (Callister Table 3.1) and its atomic weight A = 63.55 g/mol.</p><p class=\"lsn-eq\">ρ = n A / (V N<sub>A</sub>)</p><p>with n atoms per cell, cell volume V = a³ and N<sub>A</sub> = 6.022 × 10²³ per mole.</p>",
-        setup: [["click", '#cellType [data-v="fcc"]'], ["click", '#cellMode [data-v="hard"]']],
+        p: "<p>Copper is FCC. Its atomic radius is R = 0.1278 nm (Callister Table 3.1) and its atomic weight A = 63.55 g/mol.</p><p class=\"lsn-eq\">ρ = n A / (V N<sub>A</sub>)</p><p>with n atoms per cell, cell volume V = a³ and N<sub>A</sub> = 6.022 × 10²³ per mole. The red row of touching atoms gives the cell edge a from R.</p>",
+        setup: [["off", "#cellReps"], ["click", '#cellType [data-v="fcc"]'], ["click", '#cellMode [data-v="hard"]'], ["on", "#cellTouch"]],
         n: { pre: "ρ of copper =", post: "g/cm³", ans: 8.94, tol: 0.1, hint: "a = 2R√2 = 0.3615 nm = 3.615 × 10⁻⁸ cm, so V = a³ = 4.72 × 10⁻²³ cm³, and n = 4." },
         why: "ρ = (4 × 63.55) / (4.72 × 10⁻²³ × 6.022 × 10²³) = 8.94 g/cm³, the measured density of copper. A box a third of a nanometre across predicts a property you can hold (Callister Eq. 3.8; Example Problem 3.4 uses R = 0.128 nm and gets 8.89)." },
       { k: "try", h: "Same atoms, different crystal",
         p: "<p>Iron is BCC at room temperature. Heat it.</p>",
-        show: ["#ironT < .range"], setup: [["val", "#ironT", 20]],
+        show: ["#ironT < .range"], setup: [["off", "#cellTouch"], ["val", "#ironT", 20]],
         goals: [{ t: "Heat it until it changes to FCC", ok: s => s.ironT >= 912 && s.ironT < 1394 }],
         why: "At 912 °C iron changes from BCC (ferrite) to FCC (austenite): polymorphism. FCC packs tighter, so the iron shrinks a little as it changes. Hardening steel by quenching relies on this change." }
     ]
@@ -5716,30 +5889,30 @@ const LESSONS = {
         setup: [pd("pbsn", 30, 300)],
         goals: [{ t: "Put the point where an alloy is completely liquid at the lowest temperature (the bottom tip of the Liquid region)", ok: s => s.sys === "pbsn" && near(s.C, 61.9, 1.5) && near(s.T, 183, 5) }],
         why: "61.9 wt% Sn melts at 183 °C, lower than pure lead (327 °C) or pure tin (232 °C). This point is the eutectic (Greek for “easily melted”): here the liquid freezes at one temperature straight into two solids, α and β. It is why 63Sn–37Pb was the standard electronics solder: it melts at the lowest temperature, all at once." },
-      { k: "work", h: "How much of each phase?",
+      { k: "work", h: "How much of each phase?", focus: "#pdCv",
         p: "<p>At 40 wt% Sn and 150 °C the alloy is α + β. The tie line (teal) runs across the region; its ends give the compositions: C<sub>α</sub> ≈ 10.6 and C<sub>β</sub> ≈ 98.4 wt% Sn. C₀ = 40 wt% Sn is the alloy's overall composition. The lever rule gives the amounts:</p><p class=\"lsn-eq\">W<sub>α</sub> = (C<sub>β</sub> − C₀) / (C<sub>β</sub> − C<sub>α</sub>)</p>",
         setup: [pd("pbsn", 40, 150)], quiet: true,
         n: { pre: "W<sub>α</sub> =", ans: 0.67, tol: 0.02, hint: "C₀ = 40 is the alloy. The arm on the far side, C<sub>β</sub> − C₀, over the whole tie line." },
         why: "W<sub>α</sub> = (98.4 − 40)/(98.4 − 10.6) = 0.67, so two-thirds of the alloy by mass is α and one-third β (Callister Example Problem 9.3, which reads C<sub>α</sub> ≈ 11 and C<sub>β</sub> ≈ 98 and also gets 0.67). Each phase keeps its own composition; only the amounts change with C₀." },
-      { k: "watch", h: "Cool it and watch the structure grow",
+      { k: "watch", h: "Cool it and watch the structure grow", focus: "#pdMicro",
         p: "<p>Above about 235 °C, liquid. Below it, lead-rich α grows as tree-like crystals called dendrites while the liquid becomes richer in tin. At 183 °C the remaining liquid, now 61.9 wt% Sn, freezes all at once into fine alternating layers of α and β.</p>",
         show: ["#pdLog < .group"], setup: [pd("pbsn", 40, 320)], play: [["wait", 500], ["click", "#pdCool"]],
         goals: [{ t: "Let it cool to room temperature", ok: s => !s.cooling && s.T < 21 }],
         why: "Each step of the log is a line you crossed on the diagram. Click a step to return to it." },
-      { k: "predict", h: "The eutectic alloy",
+      { k: "predict", h: "The eutectic alloy", after: "#pdMicro",
         p: "<p>What will the 61.9 wt% Sn alloy look like after it freezes?</p>",
         q: { opts: ["Only fine alternating layers of α and β", "Large α dendrites with layers between them", "Grains of one phase"], ans: 0, then: [pd("pbsn", 61.9, 150)] },
         why: "It never passes through a region with liquid plus one solid, so no large primary crystals grow. All of it freezes at 183 °C as eutectic. The atoms only need to move sideways a few micrometres, between neighbouring layers, which is why the layers are so fine." },
-      { k: "try", h: "Compare with a real micrograph",
+      { k: "try", h: "Compare with a real micrograph", focus: "#pdMicro",
         show: ["#pdMicroMode"], setup: [pd("pbsn", 40, 150), ["click", '#pdMicroMode [data-v="look"]']],
         goals: [{ t: "Switch the microstructure to Real photo", ok: s => s.mode === "real" }],
         why: "Lead with 45 wt% tin, photographed in 1909: dark lead-rich α dendrites in the layered eutectic, the structure the simulation grows." },
-      { k: "work", h: "Copper–nickel",
+      { k: "work", h: "Copper–nickel", focus: "#pdCv",
         p: "<p>Copper and nickel mix in any proportion. At 35 wt% Ni and 1250 °C, the tie line ends at C<sub>L</sub> = 31.5 (liquid) and C<sub>α</sub> = 42.5 wt% Ni (solid).</p>",
         setup: [["click", '#pdMicroMode [data-v="look"]'], pd("cuni", 35, 1250)], quiet: true,
         n: { pre: "Fraction that is liquid, W<sub>L</sub> =", ans: 0.68, tol: 0.02, hint: "W<sub>L</sub> = (C<sub>α</sub> − C₀) / (C<sub>α</sub> − C<sub>L</sub>)." },
         why: "W<sub>L</sub> = (42.5 − 35)/(42.5 − 31.5) = 0.68 (Callister §9.8). The first solid is richer in nickel than the alloy; cooled too fast, the grains stay uneven (cored)." },
-      { k: "work", h: "Steel: how much pearlite?",
+      { k: "work", h: "Steel: how much pearlite?", focus: "#pdCv",
         p: "<p>In steel, <b>ferrite</b> (α) is BCC iron that holds almost no carbon (at most 0.022 wt%), and <b>cementite</b> (Fe₃C) is a hard, brittle iron carbide with 6.70 wt% C. At 727 °C (the <b>eutectoid</b>: one solid turning into two) austenite with 0.76 wt% C becomes <b>pearlite</b>, fine alternating plates of ferrite and cementite. A 0.45 wt% C steel is cooled slowly: some ferrite forms first (proeutectoid ferrite), and below 727 °C all the austenite that was left has become pearlite. The lever rule across the line from 0.022 to 0.76 gives:</p><p class=\"lsn-eq\">W<sub>p</sub> = (C₀ − 0.022) / (0.76 − 0.022)</p>",
         setup: [pd("fec", 0.45, 600, "steel")], quiet: true,
         n: { pre: "W<sub>p</sub> =", ans: 0.58, tol: 0.02, hint: "C₀ = 0.45 wt% C." },
@@ -5761,11 +5934,11 @@ const LESSONS = {
         p: "<p>The steel starts with 0.20 wt% carbon, and the gas keeps the surface at 1.00 wt%. The gear needs 0.60 wt% carbon at 0.75 mm below the surface. Run the furnace at 950 °C.</p>",
         show: ["#cbRun < .chips"], setup: [["click", '#diffView [data-v="carb"]'], ["val", "#cbT", 950], ["val", "#cbX", 0.75], ["on", "#cbStop"], ["click", "#cbReset"]],
         goals: [{ t: "Reach 0.60 wt% C at 0.75 mm at 950 °C", ok: s => s.hits.some(h => h.T === 950 && Math.abs(h.x - 0.75) < 0.01) }],
-        why: "About 15.6 hours. The 0.60 wt% point moved quickly at first, then more and more slowly (lower right graph): its depth grows with the square root of time." },
+        why: "About 15.8 hours. The 0.60 wt% point moved quickly at first, then more and more slowly (lower right graph): its depth grows with the square root of time." },
       { k: "predict", h: "Twice as long",
         p: "<p>At 950 °C, after 4 hours the 0.60 wt% point is 0.38 mm deep. How deep is it after 8 hours?</p>",
         setup: [["click", '#diffView [data-v="carb"]'], ["val", "#cbT", 950], ["val", "#cbX", 0.75], ["click", "#cbReset"], ["val", "#cbTime", 4]],
-        q: { opts: ["About 0.54 mm: √2 ≈ 1.4 times as deep", "0.76 mm: twice as deep", "1.5 mm: four times as deep"], ans: 0, then: [["val", "#cbTime", 8]] },
+        q: { opts: ["About 0.53 mm: √2 ≈ 1.4 times as deep", "0.76 mm: twice as deep", "1.5 mm: four times as deep"], ans: 0, then: [["val", "#cbTime", 8]] },
         why: "For this case the depth is x = 0.95√(Dt) (from Callister Eq. 5.5). Twice the time gives √2 ≈ 1.4 times the depth. To go twice as deep takes four times as long." },
       { k: "try", h: "A hotter furnace",
         p: "<p>The production line needs the 0.75 mm case in less than 8 hours. Find a furnace temperature that does it.</p>",
@@ -5773,10 +5946,10 @@ const LESSONS = {
         goals: [{ t: "Reach 0.75 mm in less than 8 hours", ok: s => s.hits.some(h => Math.abs(h.x - 0.75) < 0.01 && h.t < 8) }],
         why: "Anything above about 1010 °C does it. D = D₀ exp(−Q/RT) (Callister Eq. 5.8) rises steeply with temperature (lower left graph): here each extra 50 °C roughly halves the time. Hotter furnaces cost more energy and wear out faster, so the choice is a trade-off." },
       { k: "work", h: "How long at 1050 °C?",
-        p: "<p>At 1050 °C, D = 3.3 × 10⁻¹¹ m²/s. Putting 0.60 wt% C at 0.75 mm needs Dt = 6.2 × 10⁻⁷ m². How many hours is that?</p>",
+        p: "<p>At 1050 °C, D = 3.3 × 10⁻¹¹ m²/s. Putting 0.60 wt% C at 0.75 mm needs Dt = 6.24 × 10⁻⁷ m². How many hours is that?</p>",
         setup: [["click", '#diffView [data-v="carb"]'], ["val", "#cbT", 1050], ["val", "#cbX", 0.75], ["on", "#cbStop"], ["click", "#cbReset"]],
-        n: { pre: "t =", post: "h", ans: 5.2, tol: 0.2, hint: "t = Dt / D gives seconds. Divide by 3600 for hours." },
-        why: "t = 6.2 × 10⁻⁷ / 3.3 × 10⁻¹¹ ≈ 19,000 s ≈ 5.2 h. Run the furnace to check: it stops at the same time. (Callister's Design Example 5.1 gives 5.3 h; his table rounds slightly differently.)" },
+        n: { pre: "t =", post: "h", ans: 5.3, tol: 0.2, hint: "t = Dt / D gives seconds. Divide by 3600 for hours." },
+        why: "t = 6.24 × 10⁻⁷ / 3.3 × 10⁻¹¹ ≈ 19,000 s ≈ 5.3 h, the answer to Callister's Design Example 5.1. Run the furnace to check: it stops at the same time." },
       { k: "watch", h: "A new phase: nucleation, then growth",
         p: "<p>Now a liquid metal held below its melting point. First, tiny crystals appear at random places in the liquid: <b>nucleation</b>. Then each one grows outward until it meets its neighbours: <b>growth</b>. Where two crystals meet, a grain boundary forms.</p><p>The top graph tracks the fraction frozen. Notice its shape: a slow start, a fast middle, a slow finish.</p>",
         setup: [["click", '#diffView [data-v="grow"]'], ["click", '#ngMode [data-v="rates"]'], ["click", "#ngClear"], ["val", "#ngN", 1.6], ["val", "#ngG", 0.3]] },
@@ -5839,14 +6012,31 @@ const learn = (() => {
     leaveStep();
     tab = t; const L = LESSONS[t]; if (!L) { box.innerHTML = ""; return; }
     const n = ORDER.indexOf(t) + 1;
-    box.innerHTML = '<div class="lsn-chap">Chapter ' + n + ' of ' + ORDER.length + ' · ' + $("#t-" + t).textContent.replace(/^\s*\d+/, "").trim() + '</div>' +
+    box.innerHTML = '<button class="lsn-grip" aria-expanded="true" aria-label="Hide the lesson text to see more of the model"></button><div class="lsn-chap">Chapter ' + n + ' of ' + ORDER.length + ' · ' + $("#t-" + t).textContent.replace(/^\s*\d+/, "").trim() + '</div>' +
       '<h2 class="lsn-title">' + L.title + '</h2><p class="lsn-obj">' + L.obj + '</p><nav class="lsn-rail" aria-label="Steps"></nav>' +
       '<article class="lsn-step" aria-live="polite"></article>' +
       '<footer class="lsn-nav"><button id="lsnBack">← Back</button><button id="lsnLink" title="Copy a link to this step" aria-label="Copy a link to this step">' + ICON.link + '</button><button id="lsnNext">Next →</button></footer>';
     enter(P(t).i);
   }
+  // on a phone the lesson is a sheet over the bottom of the screen: the grip folds it down to its title and controls
+  function fold(on) {
+    box.classList.toggle("min", on);
+    const g = $(".lsn-grip", box);
+    if (g) { g.setAttribute("aria-expanded", on ? "false" : "true"); g.setAttribute("aria-label", on ? "Show the lesson text" : "Hide the lesson text to see more of the model"); }
+  }
+  // on a phone, bring the part of the model this step is about into the space above the sheet
+  function focusModel(sel) {
+    if (!window.matchMedia || !matchMedia("(max-width: 960px)").matches || mode !== "learn") return;
+    let el = sel ? $(sel) : null;
+    if (!el || !el.getBoundingClientRect().height) el = $("#p-" + tab);
+    if (!el) return;
+    const bar = $("header.bar"), top = (bar ? bar.getBoundingClientRect().bottom : 0) + 8;
+    const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - top);
+    try { window.scrollTo({ top: y, behavior: reduceMotion ? "auto" : "smooth" }); } catch (e) { window.scrollTo(0, y); }
+  }
   function enter(k) {
     leaveStep();
+    fold(false); box.scrollTop = 0;
     const L = LESSONS[tab]; i = clamp(k, 0, L.steps.length - 1); step = L.steps[i]; P(tab).i = i; save();
     solved = false; tries = 0; mark = {}; const my = ++gen;
     const [kn, kc, kg] = KIND[step.k], el = $(".lsn-step", box);
@@ -5875,6 +6065,7 @@ const learn = (() => {
       if (step.mark) mark = step.mark() || {};
       if (step.quiet && tabs.phase) tabs.phase.quiet(true);
       (step.pins || []).forEach(p => addPin(p));
+      focusModel(step.focus);
       if (step.play) run(step.play, my);
     });
   }
@@ -5895,7 +6086,7 @@ const learn = (() => {
     if (solved) return;
     if (step.k === "predict") {
       btns.forEach((b, k) => { b.disabled = true; if (k === q.ans) b.classList.add("right"); if (k === j && j !== q.ans) b.classList.add("wrong"); if (k === j) b.classList.add("chosen"); });
-      if (q.then) run(q.then, gen);
+      if (q.then) run(q.then, gen).then(() => { if (step.after) focusModel(step.after); });
       reveal(j === q.ans ? "As you predicted." : "Not what you predicted, which is worth noticing.");
       return;
     }
@@ -5940,6 +6131,7 @@ const learn = (() => {
     if (all) reveal("Done.");
   }
   box.addEventListener("click", e => {
+    if (e.target.closest(".lsn-grip")) { fold(!box.classList.contains("min")); return; }
     const r = e.target.closest(".lsn-rail button"); if (r) { enter(+r.dataset.k); return; }
     const b = e.target.closest("button"); if (!b) return;
     if (b.id === "lsnBack" && i > 0) enter(i - 1);
